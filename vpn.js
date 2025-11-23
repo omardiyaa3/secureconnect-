@@ -3,11 +3,9 @@ const { promisify } = require('util');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const sudo = require('sudo-prompt');
 const { app } = require('electron');
 const APIClient = require('./api');
 const execAsync = promisify(exec);
-const sudoExec = promisify(sudo.exec);
 
 class VPNManager {
     constructor() {
@@ -133,15 +131,13 @@ class VPNManager {
         }
 
         try {
-            const options = { name: 'SecureConnect' };
-
             if (this.platform === 'darwin') {
-                // macOS: networksetup
+                // macOS: networksetup (passwordless via sudoers configuration)
                 const dnsArgs = this.originalDNS === 'Empty' ? 'Empty' : this.originalDNS;
-                await sudoExec(`networksetup -setdnsservers "${this.activeInterface}" ${dnsArgs}`, options);
+                await execAsync(`sudo networksetup -setdnsservers "${this.activeInterface}" ${dnsArgs}`);
             } else if (this.platform === 'win32') {
                 // Windows: netsh - restore to DHCP
-                await sudoExec(`netsh interface ip set dns "${this.activeInterface}" dhcp`, options);
+                await execAsync(`netsh interface ip set dns "${this.activeInterface}" dhcp`);
             } else {
                 // Linux: WireGuard handles DNS automatically via wg-quick down
                 console.log('DNS restoration handled by wg-quick on Linux');
