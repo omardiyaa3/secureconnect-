@@ -166,9 +166,8 @@ class VPNManager {
         await fs.writeFile(configFile, wgConfig, { mode: 0o600 });
 
         try {
-            // Use bundled secureconnect-vpn script (rebranded wg-quick)
-            const options = { name: 'SecureConnect' };
-            await sudoExec(`"${this.wgQuickPath}" up "${configFile}"`, options);
+            // Use direct sudo call (passwordless via sudoers configuration)
+            await execAsync(`sudo "${this.wgQuickPath}" up "${configFile}"`);
             this.connected = true;
             return { success: true, message: 'Connected successfully' };
         } catch (error) {
@@ -182,8 +181,8 @@ class VPNManager {
         if (!this.connected) return { success: true, message: 'Not connected' };
         try {
             const configFile = path.join(this.configPath, 'sc0.conf');
-            const options = { name: 'SecureConnect' };
-            await sudoExec(`"${this.wgQuickPath}" down "${configFile}"`, options);
+            // Use direct sudo call (passwordless via sudoers configuration)
+            await execAsync(`sudo "${this.wgQuickPath}" down "${configFile}"`);
             await this.apiClient.disconnectVPN();
 
             // Restore original DNS settings
