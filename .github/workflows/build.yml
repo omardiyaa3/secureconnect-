@@ -35,14 +35,23 @@ jobs:
           echo "Downloading WireGuard tools source..."
           git clone https://git.zx2c4.com/wireguard-tools /tmp/wireguard-tools
           cd /tmp/wireguard-tools/src
-          echo "Compiling WireGuard for macOS..."
+          echo "Compiling WireGuard tools..."
           make clean
           make
-          echo "Copying and renaming to secureconnect-ctl..."
+          echo "Copying and renaming wg to secureconnect-ctl..."
           cp wg $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-ctl
           chmod +x $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-ctl
-          echo "Verifying binary..."
-          file $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-ctl
+
+          echo "Downloading and compiling wireguard-go..."
+          git clone https://git.zx2c4.com/wireguard-go /tmp/wireguard-go
+          cd /tmp/wireguard-go
+          make
+          echo "Copying and renaming to secureconnect-go..."
+          cp wireguard-go $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-go
+          chmod +x $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-go
+
+          echo "Verifying binaries..."
+          file $GITHUB_WORKSPACE/resources/bin/darwin/*
           ls -lh $GITHUB_WORKSPACE/resources/bin/darwin/
 
       - name: Build for macOS

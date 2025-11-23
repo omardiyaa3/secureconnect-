@@ -161,13 +161,32 @@ class VPNManager {
 
         const config = await this.apiClient.connectVPN();
         this.vpnConfig = config;
-        const wgConfig = this.generateWireGuardConfig(config);
-        const configFile = path.join(this.configPath, 'sc0.conf');
-        await fs.writeFile(configFile, wgConfig, { mode: 0o600 });
+
         try {
-            // Use sudo-prompt which triggers Touch ID on macOS
             const options = { name: 'SecureConnect' };
-            await sudoExec(`"${this.wgQuickPath}" up "${configFile}"`, options);
+
+            if (this.platform === 'darwin') {
+                // macOS: Use simple wg commands directly (requires WireGuard app installed)
+                const wgConfig = this.generateWireGuardConfig(config);
+                const configFile = path.join(this.configPath, 'sc0.conf');
+                await fs.writeFile(configFile, wgConfig, { mode: 0o600 });
+
+                // Check if WireGuard.app is installed
+                const wgPath = '/Applications/WireGuard.app/Contents/MacOS/WireGuard';
+                if (require('fs').existsSync(wgPath)) {
+                    // Use WireGuard.app
+                    await sudoExec(`"${wgPath}" tunnel --activate "${configFile}"`, options);
+                } else {
+                    throw new Error('WireGuard app not installed. Please install from: https://apps.apple.com/app/wireguard/id1451685025');
+                }
+            } else {
+                // Windows/Linux: Use original wg-quick approach
+                const wgConfig = this.generateWireGuardConfig(config);
+                const configFile = path.join(this.configPath, 'sc0.conf');
+                await fs.writeFile(configFile, wgConfig, { mode: 0o600 });
+                await sudoExec(`"${this.wgQuickPath}" up "${configFile}"`, options);
+            }
+
             this.connected = true;
             return { success: true, message: 'Connected successfully' };
         } catch (error) {
