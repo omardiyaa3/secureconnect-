@@ -10,7 +10,7 @@
     "build:win": "electron-builder --windows",
     "build:linux": "electron-builder --linux"
   },
-  "author": "WorldPosta",
+  "author": "WorldPosta <support@worldposta.com>",
   "license": "Proprietary",
   "dependencies": {
     "electron-updater": "^6.6.2",
