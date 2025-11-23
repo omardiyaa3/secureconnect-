@@ -44,13 +44,23 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        {
+          "target": "pkg",
+          "arch": ["x64", "arm64"]
+        }
       ],
       "category": "public.app-category.utilities",
       "icon": "assets/icon.png",
       "extendInfo": {
         "LSUIElement": false
       }
+    },
+    "pkg": {
+      "scripts": "installer/scripts/postinstall",
+      "allowAnywhere": true,
+      "allowCurrentUserHome": false,
+      "allowRootDirectory": true,
+      "installLocation": "/Applications"
     },
     "dmg": {
       "title": "SecureConnect Installer",
