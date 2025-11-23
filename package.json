@@ -13,11 +13,11 @@
   "author": "WorldPosta",
   "license": "Proprietary",
   "dependencies": {
-    "electron": "^28.0.0",
     "electron-updater": "^6.6.2",
     "sudo-prompt": "^9.2.1"
   },
   "devDependencies": {
+    "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "electron-packager": "^17.1.2"
   },
