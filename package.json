@@ -56,10 +56,7 @@
       }
     },
     "pkg": {
-      "scripts": "installer/scripts/postinstall",
-      "allowAnywhere": true,
-      "allowCurrentUserHome": false,
-      "allowRootDirectory": true,
+      "scripts": "installer/mac",
       "installLocation": "/Applications"
     },
     "dmg": {
