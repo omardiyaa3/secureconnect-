@@ -44,10 +44,7 @@
     },
     "mac": {
       "target": [
-        {
-          "target": "pkg",
-          "arch": ["x64", "arm64"]
-        }
+        "pkg"
       ],
       "category": "public.app-category.utilities",
       "icon": "assets/icon.png",
