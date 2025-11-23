@@ -24,21 +24,23 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Simple and guaranteed to work
+// VPN icon for menu bar - Monochrome template image for macOS
 const createVPNIcon = (connected) => {
     const size = 20;
-    const color = connected ? '#10b981' : '#6b7280';
 
-    // Simple filled circle - always visible
-    const svg = `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="${size/2}" cy="${size/2}" r="8" fill="${color}" stroke="#000000" stroke-width="1"/>
-        ${connected ? `<text x="50%" y="55%" font-size="10" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="white">✓</text>` : ''}
-    </svg>`;
+    // Monochrome template image (black shapes on transparent background)
+    // macOS will automatically colorize based on menu bar appearance
+    const svg = connected
+        ? `<svg width="${size}" height="${size}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 2 L16 5 L16 10 C16 14 13 16.5 10 18 C7 16.5 4 14 4 10 L4 5 Z" fill="black" stroke="black" stroke-width="1.5"/>
+            <path d="M7 10 L9 12 L13 8" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`
+        : `<svg width="${size}" height="${size}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 2 L16 5 L16 10 C16 14 13 16.5 10 18 C7 16.5 4 14 4 10 L4 5 Z" fill="none" stroke="black" stroke-width="1.5"/>
+        </svg>`;
 
     const img = nativeImage.createFromDataURL('data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64'));
-    if (!img.isEmpty()) {
-        img.setTemplateImage(true);
-    }
+    img.setTemplateImage(true);
     return img;
 };
 
