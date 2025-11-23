@@ -16,6 +16,7 @@ APP_BUNDLE_PATH="/Applications/SecureConnect.app"
 SECURECONNECT_VPN_PATH="${APP_BUNDLE_PATH}/Contents/Resources/bin/darwin/secureconnect-vpn"
 SECURECONNECT_CTL_PATH="${APP_BUNDLE_PATH}/Contents/Resources/bin/darwin/secureconnect-ctl"
 SECURECONNECT_GO_PATH="${APP_BUNDLE_PATH}/Contents/Resources/bin/darwin/secureconnect-go"
+SECURECONNECT_BASH_PATH="${APP_BUNDLE_PATH}/Contents/Resources/bin/darwin/secureconnect-bash"
 NETWORKSETUP_PATH="/usr/sbin/networksetup"
 SUDOERS_FILE="/private/etc/sudoers.d/secureconnect-vpn"
 
@@ -34,6 +35,8 @@ $INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_CTL_PATH
 $INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_CTL_PATH *
 $INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_GO_PATH
 $INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_GO_PATH *
+$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_BASH_PATH
+$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_BASH_PATH *
 
 # DNS management (used during connect/disconnect)
 $INSTALL_USER ALL=(ALL) NOPASSWD: $NETWORKSETUP_PATH

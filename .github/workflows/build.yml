@@ -50,6 +50,11 @@ jobs:
           cp wireguard-go $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-go
           chmod +x $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-go
 
+          echo "Installing and bundling bash 5..."
+          brew install bash
+          cp /opt/homebrew/bin/bash $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-bash
+          chmod +x $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-bash
+
           echo "Verifying binaries..."
           file $GITHUB_WORKSPACE/resources/bin/darwin/*
           ls -lh $GITHUB_WORKSPACE/resources/bin/darwin/
