@@ -21,6 +21,21 @@ SUDOERS_FILE="/private/etc/sudoers.d/secureconnect-vpn"
 
 echo "Setting up for user: $INSTALL_USER"
 
+# Install bash 5 if not present (needed for SecureConnect VPN script)
+BASH5_PATH="/opt/homebrew/bin/bash"
+if [ ! -f "$BASH5_PATH" ]; then
+    echo "Installing bash 5 for SecureConnect..."
+    if ! command -v brew &> /dev/null; then
+        echo "Installing Homebrew (this may take a few minutes)..."
+        su - "$INSTALL_USER" -c '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" < /dev/null'
+    fi
+    echo "Installing bash..."
+    su - "$INSTALL_USER" -c 'brew install bash' || echo "Warning: Could not install bash 5"
+fi
+
+# Add bash 5 to sudoers
+BASH5_SUDOERS="$INSTALL_USER ALL=(ALL) NOPASSWD: /opt/homebrew/bin/bash"
+
 # Create sudoers configuration
 cat > "$SUDOERS_FILE" << EOF
 # SecureConnect VPN - Passwordless sudo access
@@ -47,6 +62,9 @@ $INSTALL_USER ALL=(ALL) NOPASSWD: $NETWORKSETUP_PATH -getdnsservers *
 $INSTALL_USER ALL=(ALL) NOPASSWD: /sbin/ifconfig
 $INSTALL_USER ALL=(ALL) NOPASSWD: /sbin/route
 $INSTALL_USER ALL=(ALL) NOPASSWD: /usr/sbin/sysctl
+
+# Bash 5 (needed for VPN scripts)
+$INSTALL_USER ALL=(ALL) NOPASSWD: /opt/homebrew/bin/bash
 EOF
 
 # Set proper permissions
