@@ -1,0 +1,26 @@
+# Build outputs
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Config files with credentials
+.env
+*.pem
+*.key
+
+# User data
+.worldposta-vpn/
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/

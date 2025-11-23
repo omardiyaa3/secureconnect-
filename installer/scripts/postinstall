@@ -1,0 +1,69 @@
+#!/bin/bash
+# SecureConnect VPN Post-Installation Script
+# Automatically configures passwordless sudo for VPN operations
+
+echo "Configuring SecureConnect VPN helper..."
+
+# Get the user who is installing (not root)
+INSTALL_USER="${USER}"
+if [ "$INSTALL_USER" = "root" ]; then
+    # If running as root (during pkg install), get the actual user
+    INSTALL_USER=$(stat -f '%Su' /dev/console)
+fi
+
+# Paths
+APP_BUNDLE_PATH="/Applications/SecureConnect.app"
+SECURECONNECT_VPN_PATH="${APP_BUNDLE_PATH}/Contents/Resources/bin/darwin/secureconnect-vpn"
+SECURECONNECT_CTL_PATH="${APP_BUNDLE_PATH}/Contents/Resources/bin/darwin/secureconnect-ctl"
+WG_QUICK_PATH="/opt/homebrew/bin/wg-quick"
+NETWORKSETUP_PATH="/usr/sbin/networksetup"
+SUDOERS_FILE="/private/etc/sudoers.d/secureconnect-vpn"
+
+echo "Setting up for user: $INSTALL_USER"
+
+# Create sudoers configuration
+cat > "$SUDOERS_FILE" << EOF
+# SecureConnect VPN - Passwordless sudo access
+# This allows the user to manage VPN without password prompts
+
+# SecureConnect bundled binaries (rebranded WireGuard)
+$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_VPN_PATH
+$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_VPN_PATH up *
+$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_VPN_PATH down *
+$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_CTL_PATH
+$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_CTL_PATH *
+
+# Fallback: System WireGuard (if user has it installed)
+$INSTALL_USER ALL=(ALL) NOPASSWD: $WG_QUICK_PATH
+$INSTALL_USER ALL=(ALL) NOPASSWD: $WG_QUICK_PATH up *
+$INSTALL_USER ALL=(ALL) NOPASSWD: $WG_QUICK_PATH down *
+
+# DNS management (used during connect/disconnect)
+$INSTALL_USER ALL=(ALL) NOPASSWD: $NETWORKSETUP_PATH
+$INSTALL_USER ALL=(ALL) NOPASSWD: $NETWORKSETUP_PATH -setdnsservers *
+$INSTALL_USER ALL=(ALL) NOPASSWD: $NETWORKSETUP_PATH -getdnsservers *
+
+# Network interface management (wg-quick uses these internally)
+$INSTALL_USER ALL=(ALL) NOPASSWD: /sbin/ifconfig
+$INSTALL_USER ALL=(ALL) NOPASSWD: /sbin/route
+$INSTALL_USER ALL=(ALL) NOPASSWD: /usr/sbin/sysctl
+EOF
+
+# Set proper permissions
+chmod 0440 "$SUDOERS_FILE"
+
+# Verify syntax
+if visudo -c -f "$SUDOERS_FILE" >/dev/null 2>&1; then
+    echo "✓ SecureConnect VPN helper configured successfully"
+else
+    echo "✗ Error: Invalid sudoers syntax"
+    rm -f "$SUDOERS_FILE"
+    exit 1
+fi
+
+# Create SecureConnect config directory
+mkdir -p /etc/secureconnect
+chmod 755 /etc/secureconnect
+echo "✓ SecureConnect config directory created"
+
+exit 0
