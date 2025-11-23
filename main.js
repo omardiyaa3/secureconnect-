@@ -267,10 +267,79 @@ function showUpdateDialog(updateInfo) {
     });
 }
 
+// Setup SecureConnect permissions on first launch
+async function setupPermissions() {
+    const sudoersFile = '/private/etc/sudoers.d/secureconnect-vpn';
+
+    // Check if already configured
+    if (fsSync.existsSync(sudoersFile)) {
+        const content = fsSync.readFileSync(sudoersFile, 'utf8');
+        if (content.includes('/Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-vpn')) {
+            console.log('[SETUP] Already configured');
+            return true;
+        }
+    }
+
+    const response = await dialog.showMessageBox({
+        type: 'info',
+        title: 'SecureConnect Setup',
+        message: 'First-time setup required',
+        detail: 'SecureConnect needs to configure passwordless VPN access. You will be asked for your password once.',
+        buttons: ['Setup Now', 'Later'],
+        defaultId: 0
+    });
+
+    if (response.response !== 0) return false;
+
+    const username = os.userInfo().username;
+    const appPath = '/Applications/SecureConnect.app';
+    const sudoersContent = `# SecureConnect VPN
+${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-vpn
+${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-vpn up *
+${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-vpn down *
+${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-ctl
+${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-ctl *
+${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-go
+${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-go *
+${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-bash
+${username} ALL=(ALL) NOPASSWD: /usr/sbin/networksetup
+${username} ALL=(ALL) NOPASSWD: /usr/sbin/networksetup *
+${username} ALL=(ALL) NOPASSWD: /sbin/ifconfig
+${username} ALL=(ALL) NOPASSWD: /sbin/ifconfig *
+${username} ALL=(ALL) NOPASSWD: /sbin/route
+${username} ALL=(ALL) NOPASSWD: /sbin/route *
+${username} ALL=(ALL) NOPASSWD: /usr/sbin/sysctl
+${username} ALL=(ALL) NOPASSWD: /usr/bin/pkill
+${username} ALL=(ALL) NOPASSWD: /bin/rm
+${username} ALL=(ALL) NOPASSWD: /bin/mkdir
+`;
+
+    const tmpFile = `/tmp/secureconnect-sudoers-${Date.now()}`;
+    fsSync.writeFileSync(tmpFile, sudoersContent);
+    const setupScript = `cp "${tmpFile}" "${sudoersFile}" && chmod 0440 "${sudoersFile}" && mkdir -p /etc/secureconnect && chmod 755 /etc/secureconnect && rm "${tmpFile}"`;
+
+    return new Promise((resolve) => {
+        sudo.exec(setupScript, { name: 'SecureConnect Setup' }, (error) => {
+            if (!error) {
+                dialog.showMessageBox({ type: 'info', title: 'Setup Complete', message: 'SecureConnect configured successfully!' });
+                resolve(true);
+            } else {
+                dialog.showErrorBox('Setup Failed', 'Please try again');
+                resolve(false);
+            }
+        });
+    });
+}
+
 app.whenReady().then(async () => {
     await loadPortals();
     createTray();
     createWindow();
+
+    // Run setup on first launch (macOS only)
+    if (process.platform === 'darwin') {
+        setTimeout(() => setupPermissions(), 1000);
+    }
 
     // Note: Update check now happens after login, not on startup
 });
