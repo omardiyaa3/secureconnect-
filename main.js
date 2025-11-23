@@ -2,7 +2,9 @@ const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage, dialog, shell } = 
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const os = require('os');
+const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
 const APP_VERSION = '2.0.0';
