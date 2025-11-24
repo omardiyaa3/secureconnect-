@@ -24,22 +24,17 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Monochrome template image for macOS
+// VPN icon for menu bar - Load from PNG files
 const createVPNIcon = (connected) => {
-    const size = 20;
+    const isDev = !app.isPackaged;
+    const resourcesPath = isDev
+        ? path.join(__dirname, 'resources')
+        : process.resourcesPath;
 
-    // Monochrome template image (black shapes on transparent background)
-    // macOS will automatically colorize based on menu bar appearance
-    const svg = connected
-        ? `<svg width="${size}" height="${size}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10 2 L16 5 L16 10 C16 14 13 16.5 10 18 C7 16.5 4 14 4 10 L4 5 Z" fill="black" stroke="black" stroke-width="1.5"/>
-            <path d="M7 10 L9 12 L13 8" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`
-        : `<svg width="${size}" height="${size}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10 2 L16 5 L16 10 C16 14 13 16.5 10 18 C7 16.5 4 14 4 10 L4 5 Z" fill="none" stroke="black" stroke-width="1.5"/>
-        </svg>`;
+    const iconName = connected ? 'tray-connected.png' : 'tray-disconnected.png';
+    const iconPath = path.join(resourcesPath, 'icons', iconName);
 
-    const img = nativeImage.createFromDataURL('data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64'));
+    const img = nativeImage.createFromPath(iconPath);
     img.setTemplateImage(true);
     return img;
 };
