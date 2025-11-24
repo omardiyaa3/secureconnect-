@@ -24,31 +24,26 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Load shield logo from file
+// VPN icon for menu bar - Load PNG from file with proper path resolution
 const createVPNIcon = (connected) => {
-    const iconName = connected ? 'tray-connected.svg' : 'tray-disconnected.svg';
-    const iconPath = path.join(__dirname, 'resources', 'icons', iconName);
+    // Proper path resolution for both dev and production
+    const isDev = !app.isPackaged;
+    const resourcesPath = isDev
+        ? path.join(__dirname, 'resources')
+        : process.resourcesPath;
 
-    // Load SVG file from disk
+    const iconName = connected ? 'tray-connected-simple.png' : 'tray-disconnected-simple.png';
+    const iconPath = path.join(resourcesPath, 'icons', iconName);
+
+    console.log('Loading tray icon from:', iconPath);
+    console.log('File exists:', fsSync.existsSync(iconPath));
+
+    // Load PNG file from disk
     const img = nativeImage.createFromPath(iconPath);
 
-    if (!img.isEmpty()) {
-        // SVG loaded successfully - don't use template mode for colored icons
-        return img;
-    }
+    console.log('Icon loaded - isEmpty:', img.isEmpty(), 'size:', img.getSize());
 
-    // Fallback if file doesn't exist: read SVG content and use data URL
-    try {
-        const svgContent = require('fs').readFileSync(iconPath, 'utf8');
-        return nativeImage.createFromDataURL('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent));
-    } catch (e) {
-        console.error('Failed to load tray icon:', e);
-        // Last resort: simple colored square
-        const size = 22;
-        const color = connected ? '#00FF00' : '#808080';
-        const svg = `<svg width="${size}" height="${size}"><rect width="${size}" height="${size}" fill="${color}"/></svg>`;
-        return nativeImage.createFromDataURL('data:image/svg+xml,' + encodeURIComponent(svg));
-    }
+    return img;
 };
 
 async function loadPortals() {
