@@ -24,24 +24,21 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Use proper macOS template image (monochrome)
+// VPN icon for menu bar - Shield logo as SVG
 const createVPNIcon = (connected) => {
-    // macOS template images MUST be monochrome (black and transparent only)
-    // This is a simple 16x16 black circle for testing
-    // Connected: filled circle, Disconnected: hollow circle
+    // Monochrome shield SVG - proper template image for macOS
+    // Connected: filled shield, Disconnected: hollow shield
+    const filledShield = 'PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgICAgICAgICAgPHBhdGggZD0iTTggMSBMMTQgMyBMMTQgOCBDMTQgMTEuNSAxMS41IDEzLjUgOCAxNSBDNC41IDEzLjUgMiAxMS41IDIgOCBMMiAzIFoiCiAgICAgICAgICAgICAgICAgIGZpbGw9ImJsYWNrIi8+CiAgICAgICAgPC9zdmc+';
+    const hollowShield = 'PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgICAgICAgICAgPHBhdGggZD0iTTggMSBMMTQgMyBMMTQgOCBDMTQgMTEuNSAxMS41IDEzLjUgOCAxNSBDNC41IDEzLjUgMiAxMS41IDIgOCBMMiAzIFoiCiAgICAgICAgICAgICAgICAgIGZpbGw9Im5vbmUiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgICAgICAgPC9zdmc+';
 
-    const filledCircle = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAnElEQVR42mNgoBAwUqifAYpB+v8TYT6I/x+ZT1ADVPOfkQgiDP7/Z/gPU4CsAKyIgREIGBgZGRlhGkA0yACYAlAYMjIyMPyHawAbANIDVoDQzwjTDzYAZADEAFQN6GlkBf9BCmBiUPtQXQkyAM0AmPdQbEFVgGErsgKwYpD/IeHMyACN53/ogWE4DAOjH+Z/cBiCkx3knf+M0AAioBoAAcpXLEfPMxsAAAAASUVORK5CYII=';
-    const hollowCircle = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAmUlEQVR42mNgoBAwUqifAYpB+v8z/Sf4fBD/PzKfoAao+v+MRBBh8P8/w3+YAmQFYEUMjEDAAAUM/xkhGkA0yACYAlAYQjX8h2sAGwDSA1aA0M8I0w82AGQAxABUDehp+A9SANMA0YCaRlYAVgzy/38GSDIAA0hGBugjRgh9f/+DvQwzDRr9yP4HJydwGIJNRzQe5CXE8AOhGgC1cVe7qvU2SQAAAABJRU5ErkJggg==';
-
-    const base64 = connected ? filledCircle : hollowCircle;
-    const dataURL = 'data:image/png;base64,' + base64;
+    const svgBase64 = connected ? filledShield : hollowShield;
+    const svgData = Buffer.from(svgBase64, 'base64').toString('utf-8');
+    const dataURL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
 
     const img = nativeImage.createFromDataURL(dataURL);
-
-    // Use template mode for macOS (macOS will colorize automatically)
     img.setTemplateImage(true);
 
-    console.log('Tray icon - connected:', connected, 'isEmpty:', img.isEmpty(), 'size:', img.getSize());
+    console.log('Shield icon - connected:', connected, 'isEmpty:', img.isEmpty(), 'size:', img.getSize());
 
     return img;
 };
