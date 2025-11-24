@@ -24,40 +24,31 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Try multiple approaches
+// VPN icon for menu bar - Load shield logo from file
 const createVPNIcon = (connected) => {
-    // Approach 1: Try macOS system named images (most reliable)
-    try {
-        if (process.platform === 'darwin') {
-            const systemIcon = nativeImage.createFromNamedImage(
-                connected ? 'NSStatusAvailable' : 'NSStatusNone'
-            );
-            if (!systemIcon.isEmpty()) {
-                console.log('Using macOS system icon');
-                return systemIcon;
-            }
-        }
-    } catch (e) {
-        console.error('System icon failed:', e);
-    }
+    const iconName = connected ? 'tray-connected.svg' : 'tray-disconnected.svg';
+    const iconPath = path.join(__dirname, 'resources', 'icons', iconName);
 
-    // Approach 2: Try simple colored square (debug)
-    try {
-        const color = connected ? '#00FF00' : '#FF0000';
-        const svg = `<svg width="22" height="22" xmlns="http://www.w3.org/2000/svg">
-            <rect width="22" height="22" fill="${color}"/>
-        </svg>`;
+    // Load SVG file from disk
+    const img = nativeImage.createFromPath(iconPath);
 
-        const img = nativeImage.createFromDataURL('data:image/svg+xml,' + encodeURIComponent(svg));
-        console.log('Created icon - isEmpty:', img.isEmpty(), 'size:', img.getSize());
+    if (!img.isEmpty()) {
+        // SVG loaded successfully - don't use template mode for colored icons
         return img;
-    } catch (e) {
-        console.error('SVG icon failed:', e);
     }
 
-    // Approach 3: Fallback - create empty image (should show placeholder)
-    console.error('All icon creation methods failed!');
-    return nativeImage.createEmpty();
+    // Fallback if file doesn't exist: read SVG content and use data URL
+    try {
+        const svgContent = require('fs').readFileSync(iconPath, 'utf8');
+        return nativeImage.createFromDataURL('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent));
+    } catch (e) {
+        console.error('Failed to load tray icon:', e);
+        // Last resort: simple colored square
+        const size = 22;
+        const color = connected ? '#00FF00' : '#808080';
+        const svg = `<svg width="${size}" height="${size}"><rect width="${size}" height="${size}" fill="${color}"/></svg>`;
+        return nativeImage.createFromDataURL('data:image/svg+xml,' + encodeURIComponent(svg));
+    }
 };
 
 async function loadPortals() {
