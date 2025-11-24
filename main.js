@@ -24,35 +24,40 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Professional shield logo with color
+// VPN icon for menu bar - Try multiple approaches
 const createVPNIcon = (connected) => {
-    const size = 22;
+    // Approach 1: Try macOS system named images (most reliable)
+    try {
+        if (process.platform === 'darwin') {
+            const systemIcon = nativeImage.createFromNamedImage(
+                connected ? 'NSStatusAvailable' : 'NSStatusNone'
+            );
+            if (!systemIcon.isEmpty()) {
+                console.log('Using macOS system icon');
+                return systemIcon;
+            }
+        }
+    } catch (e) {
+        console.error('System icon failed:', e);
+    }
 
-    // Professional VPN shield logo
-    // Connected: Green shield with checkmark
-    // Disconnected: Gray shield with lock
-    const svg = connected
-        ? `<svg width="${size}" height="${size}" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
-            <!-- Shield background -->
-            <path d="M11 2 L18 4.5 L18 10 C18 14.5 15 17.5 11 19.5 C7 17.5 4 14.5 4 10 L4 4.5 Z"
-                  fill="#10b981" stroke="#059669" stroke-width="1"/>
-            <!-- Checkmark -->
-            <path d="M7 11 L10 14 L15 8"
-                  stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`
-        : `<svg width="${size}" height="${size}" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
-            <!-- Shield outline -->
-            <path d="M11 2 L18 4.5 L18 10 C18 14.5 15 17.5 11 19.5 C7 17.5 4 14.5 4 10 L4 4.5 Z"
-                  fill="#9ca3af" stroke="#6b7280" stroke-width="1"/>
-            <!-- Lock icon -->
-            <rect x="9" y="11" width="4" height="4" rx="0.5" fill="white"/>
-            <path d="M9.5 11 L9.5 9.5 C9.5 8.7 10 8 11 8 C12 8 12.5 8.7 12.5 9.5 L12.5 11"
-                  stroke="white" stroke-width="1.2" fill="none"/>
+    // Approach 2: Try simple colored square (debug)
+    try {
+        const color = connected ? '#00FF00' : '#FF0000';
+        const svg = `<svg width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+            <rect width="22" height="22" fill="${color}"/>
         </svg>`;
 
-    const img = nativeImage.createFromDataURL('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
-    // Don't use template image - use colored icons for better visibility
-    return img;
+        const img = nativeImage.createFromDataURL('data:image/svg+xml,' + encodeURIComponent(svg));
+        console.log('Created icon - isEmpty:', img.isEmpty(), 'size:', img.getSize());
+        return img;
+    } catch (e) {
+        console.error('SVG icon failed:', e);
+    }
+
+    // Approach 3: Fallback - create empty image (should show placeholder)
+    console.error('All icon creation methods failed!');
+    return nativeImage.createEmpty();
 };
 
 async function loadPortals() {
