@@ -24,24 +24,20 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Load PNG from buffer (createFromPath doesn't work in packaged app)
+// VPN icon for menu bar - Embed PNG as base64 data URL
 const createVPNIcon = (connected) => {
-    // Proper path resolution for both dev and production
-    const isDev = !app.isPackaged;
-    const resourcesPath = isDev
-        ? path.join(__dirname, 'resources')
-        : process.resourcesPath;
+    // Embed PNGs directly as base64 - no file system access needed
+    // Green 16x16 PNG for connected
+    const greenPNG = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAFklEQVR42mNk+M/wn4EIwDiqYdQAAAADBAN/pdL1AAAAAElFTkSuQmCC';
+    // Gray 16x16 PNG for disconnected
+    const grayPNG = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAF0lEQVR42mNkYGD4z0AEYBzVMGrAQMAA//8DAAGAAf+KCH0AAAAASUVORK5CYII=';
 
-    const iconName = connected ? 'tray-connected-simple.png' : 'tray-disconnected-simple.png';
-    const iconPath = path.join(resourcesPath, 'icons', iconName);
+    const base64 = connected ? greenPNG : grayPNG;
+    const dataURL = 'data:image/png;base64,' + base64;
 
-    console.log('Loading tray icon from:', iconPath);
+    const img = nativeImage.createFromDataURL(dataURL);
 
-    // Read file as buffer and create image from buffer (works in packaged app)
-    const imgBuffer = fsSync.readFileSync(iconPath);
-    const img = nativeImage.createFromBuffer(imgBuffer);
-
-    console.log('Icon loaded - isEmpty:', img.isEmpty(), 'size:', img.getSize());
+    console.log('Tray icon - connected:', connected, 'isEmpty:', img.isEmpty(), 'size:', img.getSize());
 
     return img;
 };
