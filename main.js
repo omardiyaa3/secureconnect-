@@ -24,18 +24,22 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Embed PNG as base64 data URL
+// VPN icon for menu bar - Use proper macOS template image (monochrome)
 const createVPNIcon = (connected) => {
-    // Embed PNGs directly as base64 - no file system access needed
-    // Green 16x16 PNG for connected
-    const greenPNG = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAFklEQVR42mNk+M/wn4EIwDiqYdQAAAADBAN/pdL1AAAAAElFTkSuQmCC';
-    // Gray 16x16 PNG for disconnected
-    const grayPNG = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAF0lEQVR42mNkYGD4z0AEYBzVMGrAQMAA//8DAAGAAf+KCH0AAAAASUVORK5CYII=';
+    // macOS template images MUST be monochrome (black and transparent only)
+    // This is a simple 16x16 black circle for testing
+    // Connected: filled circle, Disconnected: hollow circle
 
-    const base64 = connected ? greenPNG : grayPNG;
+    const filledCircle = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAnElEQVR42mNgoBAwUqifAYpB+v8TYT6I/x+ZT1ADVPOfkQgiDP7/Z/gPU4CsAKyIgREIGBgZGRlhGkA0yACYAlAYMjIyMPyHawAbANIDVoDQzwjTDzYAZADEAFQN6GlkBf9BCmBiUPtQXQkyAM0AmPdQbEFVgGErsgKwYpD/IeHMyACN53/ogWE4DAOjH+Z/cBiCkx3knf+M0AAioBoAAcpXLEfPMxsAAAAASUVORK5CYII=';
+    const hollowCircle = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAmUlEQVR42mNgoBAwUqifAYpB+v8z/Sf4fBD/PzKfoAao+v+MRBBh8P8/w3+YAmQFYEUMjEDAAAUM/xkhGkA0yACYAlAYQjX8h2sAGwDSA1aA0M8I0w82AGQAxABUDehp+A9SANMA0YCaRlYAVgzy/38GSDIAA0hGBugjRgh9f/+DvQwzDRr9yP4HJydwGIJNRzQe5CXE8AOhGgC1cVe7qvU2SQAAAABJRU5ErkJggg==';
+
+    const base64 = connected ? filledCircle : hollowCircle;
     const dataURL = 'data:image/png;base64,' + base64;
 
     const img = nativeImage.createFromDataURL(dataURL);
+
+    // Use template mode for macOS (macOS will colorize automatically)
+    img.setTemplateImage(true);
 
     console.log('Tray icon - connected:', connected, 'isEmpty:', img.isEmpty(), 'size:', img.getSize());
 
@@ -66,6 +70,9 @@ function createTray() {
     tray = new Tray(icon);
     tray.setToolTip('SecureConnect');
 
+    // Set text as fallback - at least this should be visible!
+    tray.setTitle('VPN');
+
     tray.on('click', () => {
         if (mainWindow) {
             if (mainWindow.isVisible()) {
@@ -82,6 +89,8 @@ function createTray() {
 function updateTrayIcon() {
     const icon = createVPNIcon(isConnected);
     tray.setImage(icon);
+    // Update text to show connection status
+    tray.setTitle(isConnected ? 'VPN ✓' : 'VPN');
 }
 
 function createWindow() {
