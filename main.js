@@ -24,7 +24,7 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Load PNG from file with proper path resolution
+// VPN icon for menu bar - Load PNG from buffer (createFromPath doesn't work in packaged app)
 const createVPNIcon = (connected) => {
     // Proper path resolution for both dev and production
     const isDev = !app.isPackaged;
@@ -36,10 +36,10 @@ const createVPNIcon = (connected) => {
     const iconPath = path.join(resourcesPath, 'icons', iconName);
 
     console.log('Loading tray icon from:', iconPath);
-    console.log('File exists:', fsSync.existsSync(iconPath));
 
-    // Load PNG file from disk
-    const img = nativeImage.createFromPath(iconPath);
+    // Read file as buffer and create image from buffer (works in packaged app)
+    const imgBuffer = fsSync.readFileSync(iconPath);
+    const img = nativeImage.createFromBuffer(imgBuffer);
 
     console.log('Icon loaded - isEmpty:', img.isEmpty(), 'size:', img.getSize());
 
