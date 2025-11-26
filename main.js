@@ -7,11 +7,21 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.7';
+const APP_VERSION = '2.0.8';
 
 // Configure auto-updater
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
+
+// Accept self-signed certificates for HTTPS connections
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+    // Allow self-signed certificates
+    event.preventDefault();
+    callback(true);
+});
+
+// Also handle Node.js fetch/https requests
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 let tray = null;
 let mainWindow = null;
