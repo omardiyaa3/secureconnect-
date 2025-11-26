@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.4';
+const APP_VERSION = '2.0.6';
 
 // Configure auto-updater
 autoUpdater.autoDownload = false;
@@ -383,77 +383,27 @@ ipcMain.handle('removePortal', async (event, portalId) => {
     }
 });
 
-ipcMain.handle('addPortal', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
-        title: 'Select VPN Configuration',
-        properties: ['openFile'],
-        filters: [
-            { name: 'VPN Config', extensions: ['conf', 'json', 'portal'] },
-            { name: 'All Files', extensions: ['*'] }
-        ]
-    });
-
-    if (result.canceled || result.filePaths.length === 0) {
-        return { success: false, error: 'Cancelled' };
-    }
-
+ipcMain.handle('addPortal', async (event, data) => {
     try {
-        const filePath = result.filePaths[0];
-        const configData = await fs.readFile(filePath, 'utf8');
-        let portalName, endpoint;
-
-        // Check if it's a WireGuard .conf file
-        if (filePath.endsWith('.conf')) {
-            // Parse WireGuard config
-            const lines = configData.split('\n');
-            let inPeerSection = false;
-
-            for (const line of lines) {
-                const trimmed = line.trim();
-
-                if (trimmed === '[Peer]') {
-                    inPeerSection = true;
-                    continue;
-                }
-
-                if (inPeerSection && trimmed.startsWith('Endpoint')) {
-                    const match = trimmed.match(/Endpoint\s*=\s*(.+)/i);
-                    if (match) {
-                        const endpointValue = match[1].trim();
-                        // Extract just the host:port, convert to API endpoint
-                        const [host, port] = endpointValue.split(':');
-                        endpoint = `http://${host}:3000`; // Assume API is on port 3000
-                        break;
-                    }
-                }
-            }
-
-            if (!endpoint) {
-                return { success: false, error: 'Could not find Endpoint in .conf file' };
-            }
-
-            // Use filename as portal name
-            portalName = path.basename(filePath, '.conf');
-        } else {
-            // Parse JSON config
-            const config = JSON.parse(configData);
-
-            if (!config.name || !config.endpoint) {
-                return { success: false, error: 'Invalid config. Must contain "name" and "endpoint" fields.' };
-            }
-
-            portalName = config.name;
-            endpoint = config.endpoint;
+        if (!data || !data.name || !data.ip) {
+            return { success: false, error: 'Portal name and IP are required' };
         }
 
+        const { name, ip } = data;
+
+        // Construct HTTPS endpoint with port 3000
+        const endpoint = `https://${ip}:3000`;
+
+        // Check if portal already exists
         const exists = portals.find(p => p.endpoint === endpoint);
         if (exists) {
             return { success: false, error: 'Portal already exists' };
         }
 
+        // Add new portal
         portals.push({
             id: Date.now().toString(),
-            name: portalName,
+            name: name,
             endpoint: endpoint
         });
 
