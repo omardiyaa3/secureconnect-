@@ -24,21 +24,23 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Shield logo as SVG
+// VPN icon for menu bar - Lock icon (locked/unlocked)
 const createVPNIcon = (connected) => {
-    // Monochrome shield SVG - proper template image for macOS
-    // Connected: filled shield, Disconnected: hollow shield
-    const filledShield = 'PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgICAgICAgICAgPHBhdGggZD0iTTggMSBMMTQgMyBMMTQgOCBDMTQgMTEuNSAxMS41IDEzLjUgOCAxNSBDNC41IDEzLjUgMiAxMS41IDIgOCBMMiAzIFoiCiAgICAgICAgICAgICAgICAgIGZpbGw9ImJsYWNrIi8+CiAgICAgICAgPC9zdmc+';
-    const hollowShield = 'PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgICAgICAgICAgPHBhdGggZD0iTTggMSBMMTQgMyBMMTQgOCBDMTQgMTEuNSAxMS41IDEzLjUgOCAxNSBDNC41IDEzLjUgMiAxMS41IDIgOCBMMiAzIFoiCiAgICAgICAgICAgICAgICAgIGZpbGw9Im5vbmUiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgICAgICAgPC9zdmc+';
+    const isDev = !app.isPackaged;
+    const resourcesPath = isDev
+        ? path.join(__dirname, 'resources')
+        : process.resourcesPath;
 
-    const svgBase64 = connected ? filledShield : hollowShield;
-    const svgData = Buffer.from(svgBase64, 'base64').toString('utf-8');
-    const dataURL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+    // Connected = locked, Disconnected = unlocked
+    const iconName = connected ? 'lock-locked.png' : 'lock-unlocked.png';
+    const iconPath = path.join(resourcesPath, 'icons', iconName);
 
-    const img = nativeImage.createFromDataURL(dataURL);
+    // Read PNG file as buffer and create image
+    const imgBuffer = fsSync.readFileSync(iconPath);
+    const img = nativeImage.createFromBuffer(imgBuffer);
+
+    // Set as template image for macOS
     img.setTemplateImage(true);
-
-    console.log('Shield icon - connected:', connected, 'isEmpty:', img.isEmpty(), 'size:', img.getSize());
 
     return img;
 };
@@ -65,10 +67,7 @@ async function savePortals() {
 function createTray() {
     const icon = createVPNIcon(false);
     tray = new Tray(icon);
-    tray.setToolTip('SecureConnect');
-
-    // Set text as fallback - at least this should be visible!
-    tray.setTitle('VPN');
+    tray.setToolTip('SecureConnect VPN - Disconnected');
 
     tray.on('click', () => {
         if (mainWindow) {
@@ -86,8 +85,7 @@ function createTray() {
 function updateTrayIcon() {
     const icon = createVPNIcon(isConnected);
     tray.setImage(icon);
-    // Update text to show connection status
-    tray.setTitle(isConnected ? 'VPN ✓' : 'VPN');
+    tray.setToolTip(isConnected ? 'SecureConnect VPN - Connected' : 'SecureConnect VPN - Disconnected');
 }
 
 function createWindow() {
