@@ -477,6 +477,16 @@ ipcMain.handle('login', async (event, credentials) => {
         const result = await vpnManager.login(credentials);
         currentUser = result.user;
 
+        // Set update server URL dynamically based on portal endpoint
+        if (currentPortal && currentPortal.endpoint) {
+            const updateUrl = `${currentPortal.endpoint}/downloads/`;
+            console.log(`[AUTO-UPDATE] Setting feed URL to: ${updateUrl}`);
+            autoUpdater.setFeedURL({
+                provider: 'generic',
+                url: updateUrl
+            });
+        }
+
         // Check for updates after successful login
         console.log('✓ Login successful - will check for updates in 1 second');
         setTimeout(() => {

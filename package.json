@@ -48,10 +48,7 @@
         ]
       }
     ],
-    "publish": {
-      "provider": "generic",
-      "url": "http://37.61.219.190:3000/downloads/"
-    },
+    "publish": null,
     "mac": {
       "target": [
         "pkg"
