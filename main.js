@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.2';
+const APP_VERSION = '2.0.3';
 
 // Configure auto-updater
 autoUpdater.autoDownload = false;
