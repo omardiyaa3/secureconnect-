@@ -1,6 +1,6 @@
 {
   "name": "secureconnect",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "SecureConnect - WorldPosta VPN Client",
   "main": "main.js",
   "scripts": {
@@ -30,7 +30,8 @@
       "!installer/**",
       "!dist/**",
       "!build/**",
-      "!.git/**"
+      "!.git/**",
+      "app-update.yml"
     ],
     "extraResources": [
       {
@@ -46,9 +47,13 @@
         "filter": [
           "**/*"
         ]
-      }
+      },
+      "app-update.yml"
     ],
-    "publish": null,
+    "publish": {
+      "provider": "generic",
+      "url": "http://placeholder.local/downloads/"
+    },
     "mac": {
       "target": [
         "pkg"
