@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.1';
+const APP_VERSION = '2.0.2';
 
 // Configure auto-updater
 autoUpdater.autoDownload = false;
@@ -67,7 +67,7 @@ async function savePortals() {
 function createTray() {
     const icon = createVPNIcon(false);
     tray = new Tray(icon);
-    tray.setToolTip('SC VPN - Disconnected');
+    tray.setToolTip('SecureConnect VPN - Disconnected');
 
     tray.on('click', () => {
         if (mainWindow) {
@@ -85,7 +85,7 @@ function createTray() {
 function updateTrayIcon() {
     const icon = createVPNIcon(isConnected);
     tray.setImage(icon);
-    tray.setToolTip(isConnected ? 'SC VPN - Connected' : 'SC VPN - Disconnected');
+    tray.setToolTip(isConnected ? 'SecureConnect VPN - Connected' : 'SecureConnect VPN - Disconnected');
 }
 
 function createWindow() {
