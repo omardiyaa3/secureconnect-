@@ -175,20 +175,48 @@ class VPNManager {
 
     async disconnect() {
         if (!this.connected) return { success: true, message: 'Not connected' };
-        try {
-            const configFile = path.join(this.configPath, 'sc0.conf');
-            // Use direct sudo call (passwordless via sudoers configuration)
-            await execAsync(`sudo "${this.wgQuickPath}" down "${configFile}"`);
-            await this.apiClient.disconnectVPN();
 
-            // Restore original DNS settings
+        const configFile = path.join(this.configPath, 'sc0.conf');
+
+        try {
+            console.log('Disconnecting VPN...');
+            // Use direct sudo call (passwordless via sudoers configuration)
+            const { stdout, stderr } = await execAsync(`sudo "${this.wgQuickPath}" down "${configFile}"`);
+            console.log('wg-quick down output:', stdout);
+            if (stderr) console.log('wg-quick down stderr:', stderr);
+
+            // Verify interface is actually down
+            if (this.platform === 'darwin') {
+                try {
+                    // Check if interface still exists
+                    await execAsync('ifconfig utun9 2>&1');
+                    console.warn('Interface still exists after wg-quick down, removing manually');
+                    // Force remove if still exists
+                    await execAsync('sudo ifconfig utun9 down 2>&1 || true');
+                } catch {
+                    // Interface doesn't exist - good!
+                    console.log('VPN interface removed successfully');
+                }
+            }
+
+            await this.apiClient.disconnectVPN();
             await this.restoreDNSSettings();
 
             this.connected = false;
             return { success: true, message: 'Disconnected successfully' };
         } catch (error) {
-            // Even if disconnect fails, try to restore DNS
+            console.error('Disconnect error:', error);
+            // Even if disconnect fails, try to restore DNS and force cleanup
             await this.restoreDNSSettings();
+
+            // Force remove interface as last resort
+            if (this.platform === 'darwin') {
+                try {
+                    await execAsync('sudo ifconfig utun9 down 2>&1 || true');
+                } catch {}
+            }
+
+            this.connected = false;
             throw new Error('Disconnect failed: ' + error.message);
         }
     }
