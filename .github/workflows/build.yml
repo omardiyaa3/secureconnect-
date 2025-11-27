@@ -56,30 +56,33 @@ jobs:
           cp wireguard-go $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-go
           chmod +x $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-go
 
-          echo "Installing and bundling bash 5 with dependencies..."
-          brew install bash readline
+          echo "Compiling bash 5 from source..."
 
-          # Create lib directory for dylibs
-          mkdir -p $GITHUB_WORKSPACE/resources/bin/darwin/lib
+          # Download and compile bash from source
+          cd /tmp
+          curl -O https://ftp.gnu.org/gnu/bash/bash-5.2.tar.gz
+          tar -xzf bash-5.2.tar.gz
+          cd bash-5.2
 
-          # Copy bash binary
-          cp /opt/homebrew/bin/bash $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-bash
+          # Configure with minimal dependencies
+          ./configure --without-bash-malloc --disable-nls
+          make
+
+          # Copy compiled bash
+          cp bash $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-bash
           chmod +x $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-bash
 
-          # Copy readline library and its dependencies
-          cp /opt/homebrew/opt/readline/lib/libreadline.8.dylib $GITHUB_WORKSPACE/resources/bin/darwin/lib/
+          # Verify it works
+          echo "Testing compiled bash..."
+          $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-bash --version
 
-          # Fix the library path in bash to look for readline relative to executable
-          install_name_tool -change /opt/homebrew/opt/readline/lib/libreadline.8.dylib @executable_path/lib/libreadline.8.dylib $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-bash
-
-          # Verify the fix
-          echo "Checking library dependencies after fix..."
+          # Check dependencies
+          echo "Checking library dependencies..."
           otool -L $GITHUB_WORKSPACE/resources/bin/darwin/secureconnect-bash
 
-          echo "Verifying binaries..."
+          echo "Verifying all binaries..."
           file $GITHUB_WORKSPACE/resources/bin/darwin/*
           ls -lh $GITHUB_WORKSPACE/resources/bin/darwin/
-          ls -lh $GITHUB_WORKSPACE/resources/bin/darwin/lib/
 
       - name: Build for macOS
         if: matrix.os == 'macos-latest'
