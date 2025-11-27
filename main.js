@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.12';
+const APP_VERSION = '2.0.13';
 
 // Configure auto-updater
 autoUpdater.autoDownload = false;
@@ -358,6 +358,46 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', (e) => {
     e.preventDefault();
+});
+
+// Disconnect VPN when app is quitting
+app.on('before-quit', async (e) => {
+    if (isConnected) {
+        e.preventDefault();
+        console.log('Disconnecting VPN before quit...');
+        try {
+            await vpnManager.disconnect();
+            isConnected = false;
+        } catch (error) {
+            console.error('Error disconnecting on quit:', error);
+        }
+        app.quit();
+    }
+});
+
+// Also handle SIGINT/SIGTERM for command-line termination
+process.on('SIGINT', async () => {
+    if (isConnected) {
+        console.log('Disconnecting VPN on SIGINT...');
+        try {
+            await vpnManager.disconnect();
+        } catch (error) {
+            console.error('Error disconnecting:', error);
+        }
+    }
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    if (isConnected) {
+        console.log('Disconnecting VPN on SIGTERM...');
+        try {
+            await vpnManager.disconnect();
+        } catch (error) {
+            console.error('Error disconnecting:', error);
+        }
+    }
+    process.exit(0);
 });
 
 if (app.dock) app.dock.hide();

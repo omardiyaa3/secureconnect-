@@ -162,6 +162,14 @@ class VPNManager {
         await fs.writeFile(configFile, wgConfig, { mode: 0o600 });
 
         try {
+            // Clean up any existing interface before connecting
+            try {
+                console.log('Checking for existing VPN interface...');
+                await execAsync(`sudo "${this.wgQuickPath}" down "${configFile}" 2>/dev/null || true`);
+            } catch (e) {
+                // Ignore errors - interface might not exist
+            }
+
             // Use direct sudo call (passwordless via sudoers configuration)
             await execAsync(`sudo "${this.wgQuickPath}" up "${configFile}"`);
             this.connected = true;
