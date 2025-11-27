@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.9';
+const APP_VERSION = '2.0.10';
 
 // Configure auto-updater
 autoUpdater.autoDownload = false;
@@ -285,13 +285,11 @@ function showUpdateDialog(updateInfo) {
 async function setupPermissions() {
     const sudoersFile = '/private/etc/sudoers.d/secureconnect-vpn';
 
-    // Check if already configured
+    // Check if sudoers file exists (don't try to read it - we don't have permission)
+    // The PKG installer creates this file, so if it exists, we're good
     if (fsSync.existsSync(sudoersFile)) {
-        const content = fsSync.readFileSync(sudoersFile, 'utf8');
-        if (content.includes('/Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-vpn')) {
-            console.log('[SETUP] Already configured');
-            return true;
-        }
+        console.log('[SETUP] Sudoers file exists - configured by installer');
+        return true;
     }
 
     const response = await dialog.showMessageBox({
