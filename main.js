@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.15';
+const APP_VERSION = '2.0.16';
 
 // Configure auto-updater
 autoUpdater.autoDownload = false;
@@ -100,8 +100,8 @@ function updateTrayIcon() {
 
 function createWindow() {
     const windowOptions = {
-        width: 380,
-        height: 500,
+        width: 320,
+        height: 420,
         resizable: false,
         show: false,
         frame: false,
