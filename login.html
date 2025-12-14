@@ -64,6 +64,9 @@
             background: var(--card-bg);
             border: 1px solid var(--border);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
         }
 
         /* Header */
@@ -140,6 +143,9 @@
         /* Container */
         .container {
             padding: 16px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
         }
 
         /* Form elements */
@@ -335,7 +341,7 @@
             align-items: center;
             justify-content: center;
             padding: 48px 24px;
-            min-height: 300px;
+            flex: 1;
         }
 
         .no-portal-view p {
@@ -496,15 +502,8 @@
         <div class="header">
             <div class="header-left">
                 <div class="logo-container" style="background: transparent;">
-                    <!-- WorldPosta Cloud+WP Logo -->
-                    <svg class="logo-icon" viewBox="0 0 100 80" style="width: 32px; height: 26px;">
-                        <!-- Cloud shape -->
-                        <path d="M75 65 L25 65 C11 65 0 54 0 40 C0 28 8 18 20 15 C22 6 31 0 42 0 C54 0 64 8 67 19 C68 19 69 18 70 18 C84 18 95 29 95 43 C95 54 87 63 76 65 L85 65 C92 62 97 54 97 45 C97 33 88 23 76 21 C76 21 76 20 76 19 C76 8 66 0 54 1 C48 1 43 4 40 8 C36 3 29 0 22 2 C12 4 5 14 6 24 C2 29 0 36 0 43 C0 56 10 67 23 68 L77 68 C90 67 100 56 100 43 C100 30 90 19 77 18" fill="#293c51"/>
-                        <!-- W letter -->
-                        <text x="22" y="52" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#679a41">W</text>
-                        <!-- P letter -->
-                        <text x="58" y="52" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#679a41">P</text>
-                    </svg>
+                    <!-- WorldPosta Logo -->
+                    <img src="data:image/png;base64,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" alt="WorldPosta" style="width: 32px; height: 32px;">
                 </div>
                 <div class="brand">
                     <span class="brand-name">WorldPosta</span>

@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.21';
+const APP_VERSION = '2.0.22';
 
 // Enable transparent visuals for Linux
 if (process.platform === 'linux') {
