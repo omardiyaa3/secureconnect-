@@ -2,183 +2,385 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>SecureConnect</title>
+    <title>Super Connect</title>
     <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --primary-foreground: #ffffff;
+            --success: #22c55e;
+            --destructive: #ef4444;
+            --destructive-hover: #dc2626;
+            --destructive-foreground: #ffffff;
+            --background: #0f172a;
+            --foreground: #f8fafc;
+            --card: #1e293b;
+            --card-foreground: #f8fafc;
+            --muted-foreground: #94a3b8;
+            --border: #334155;
+            --secondary: #334155;
+            --secondary-hover: #475569;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-            background: #ffffff;
-            color: #333;
+            background: var(--background);
+            color: var(--foreground);
             width: 360px;
             min-height: 480px;
             overflow-x: hidden;
         }
 
-        /* Header with logo */
+        /* Glass card effect */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        /* Header */
         .header {
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            padding: 12px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.3);
         }
+
         .header-left {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
-        .logo {
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             width: 32px;
             height: 32px;
-            object-fit: contain;
+            border-radius: 8px;
+            background: rgba(59, 130, 246, 0.1);
         }
-        .divider {
-            width: 1px;
-            height: 24px;
-            background: #10b981;
+
+        .logo-icon {
+            width: 20px;
+            height: 20px;
+            color: var(--primary);
         }
-        .app-title {
-            font-size: 16px;
+
+        .brand {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .brand-name {
             font-weight: 600;
-            color: #212529;
+            color: var(--foreground);
+            font-size: 14px;
         }
+
+        .brand-product {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
         .close-btn {
             background: none;
             border: none;
-            color: #6c757d;
-            font-size: 20px;
+            color: var(--muted-foreground);
             cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 3px;
+            padding: 6px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
         }
+
         .close-btn:hover {
-            background: #e9ecef;
+            background: rgba(51, 65, 85, 0.8);
         }
 
-        /* Main container */
+        .close-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Container */
         .container {
-            padding: 20px;
+            padding: 16px;
         }
 
-        /* Portal selector */
-        .portal-section {
-            margin-bottom: 20px;
-        }
+        /* Form elements */
         label {
             display: block;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
-            color: #495057;
-            margin-bottom: 6px;
+            color: var(--foreground);
+            margin-bottom: 8px;
         }
-        select, input {
+
+        .input-field {
             width: 100%;
             padding: 10px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
             font-size: 14px;
-            background: #fff;
-        }
-        select:focus, input:focus {
-            outline: none;
-            border-color: #10b981;
+            background: var(--card);
+            color: var(--foreground);
+            transition: border-color 0.2s;
         }
 
-        .add-portal-btn {
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .input-field::placeholder {
+            color: var(--muted-foreground);
+        }
+
+        /* Custom dropdown */
+        .dropdown-container {
+            position: relative;
+        }
+
+        .dropdown-button {
             width: 100%;
-            padding: 8px;
-            margin-top: 8px;
-            background: #f8f9fa;
-            border: 1px dashed #ced4da;
-            border-radius: 4px;
-            color: #6c757d;
-            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--card);
+            color: var(--foreground);
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.2s;
+        }
+
+        .dropdown-button:hover {
+            border-color: var(--primary);
+        }
+
+        .dropdown-button .placeholder {
+            color: var(--muted-foreground);
+        }
+
+        .dropdown-button svg {
+            width: 16px;
+            height: 16px;
+            color: var(--muted-foreground);
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            z-index: 50;
+            overflow: hidden;
+        }
+
+        .dropdown-menu.open {
+            display: block;
+        }
+
+        .dropdown-item {
+            width: 100%;
+            padding: 10px 12px;
+            text-align: left;
+            background: none;
+            border: none;
+            color: var(--foreground);
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(51, 65, 85, 0.6);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
-        }
-        .add-portal-btn:hover {
-            background: #e9ecef;
-            border-color: #10b981;
-            color: #10b981;
+            border: none;
         }
 
-        /* Login form */
-        .login-form {
-            margin-top: 20px;
+        .btn-primary {
+            background: var(--primary);
+            color: var(--primary-foreground);
         }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: var(--foreground);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--secondary-hover);
+        }
+
+        .btn-danger {
+            background: var(--destructive);
+            color: var(--destructive-foreground);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: var(--destructive-hover);
+        }
+
+        .btn-outline-danger {
+            background: transparent;
+            color: var(--destructive);
+            border: 1px solid var(--destructive);
+        }
+
+        .btn-outline-danger:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Portal actions */
+        .portal-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .portal-actions .btn {
+            flex: 1;
+        }
+
+        /* Form group */
         .form-group {
             margin-bottom: 16px;
         }
 
-        /* Connect button */
-        .connect-btn {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            background: #10b981;
-            color: white;
-            margin-top: 20px;
-            transition: background 0.2s;
-        }
-        .connect-btn:hover:not(:disabled) {
-            background: #059669;
-        }
-        .connect-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .disconnect-btn {
-            background: #dc3545;
-        }
-        .disconnect-btn:hover:not(:disabled) {
-            background: #c82333;
-        }
-
-        /* Status display */
-        .status-section {
-            padding: 16px;
-            background: #e8f5e9;
-            border: 1px solid #c8e6c9;
-            border-radius: 4px;
-            margin-bottom: 16px;
-        }
-        .status-title {
-            font-weight: 600;
-            color: #2e7d32;
-            margin-bottom: 8px;
-        }
-        .status-item {
-            font-size: 13px;
-            color: #4caf50;
-            margin: 4px 0;
-        }
-
         /* Error message */
-        .error {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            color: #856404;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 12px;
-            font-size: 13px;
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--destructive);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
             display: none;
         }
 
-        .hidden {
-            display: none !important;
+        /* No portal view */
+        .no-portal-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 24px;
         }
 
-        /* Modal styles */
+        .no-portal-view p {
+            color: var(--muted-foreground);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        /* Connected view */
+        .connected-view {
+            padding: 16px;
+        }
+
+        .signal-container {
+            display: flex;
+            justify-content: center;
+            padding: 16px 0;
+        }
+
+        .signal-icon {
+            width: 64px;
+            height: 64px;
+            color: var(--success);
+            animation: pulse-signal 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-signal {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.05); }
+        }
+
+        .status-card {
+            background: rgba(51, 65, 85, 0.4);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .status-header svg {
+            width: 20px;
+            height: 20px;
+            color: var(--success);
+        }
+
+        .status-header span {
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .status-info {
+            font-size: 14px;
+        }
+
+        .status-info p {
+            margin: 6px 0;
+            color: var(--foreground);
+        }
+
+        .status-info .label {
+            color: var(--muted-foreground);
+        }
+
+        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -186,137 +388,186 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-        }
-        .modal {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            width: 300px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            z-index: 1001;
-        }
-        .modal h3 {
-            margin: 0 0 16px 0;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        .modal-buttons {
-            display: flex;
-            gap: 8px;
-            margin-top: 16px;
-        }
-        .modal-buttons button {
-            flex: 1;
-            padding: 8px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        .modal-buttons .primary {
-            background: #10b981;
-            color: white;
-            border-color: #10b981;
-        }
-        .modal-buttons .primary:hover {
-            background: #059669;
+            z-index: 50;
         }
 
-        /* No portal message */
-        .no-portal {
-            text-align: center;
-            padding: 30px 20px;
-            color: #6c757d;
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
         }
-        .no-portal-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
+
+        .modal {
+            position: relative;
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin: auto;
+            width: calc(100% - 32px);
+            max-width: 320px;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(51, 65, 85, 0.5);
         }
-        .no-portal p {
+
+        .modal h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--foreground);
             margin-bottom: 16px;
-            font-size: 14px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .modal-buttons .btn {
+            flex: 1;
+        }
+
+        /* Animation */
+        .animate-fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-left">
-            <img class="logo" id="logo" alt="WorldPosta">
-            <div class="divider"></div>
-            <span class="app-title">SecureConnect</span>
-        </div>
-        <button class="close-btn" onclick="closeWindow()">×</button>
-    </div>
-
-    <div class="container">
-        <!-- No portals message -->
-        <div id="noPortalView" class="no-portal">
-            <div class="no-portal-icon">🔒</div>
-            <p>No portals configured</p>
-            <button class="add-portal-btn" onclick="addPortal()">+ Add Portal Configuration</button>
-        </div>
-
-        <!-- Main login view -->
-        <div id="loginView" class="hidden">
-            <div class="portal-section">
-                <label>Portal</label>
-                <select id="portalSelect">
-                    <option value="">Select a portal...</option>
-                </select>
-                <div style="display: flex; gap: 8px; margin-top: 8px;">
-                    <button class="add-portal-btn" style="flex: 1;" onclick="addPortal()">+ Add Portal</button>
-                    <button class="add-portal-btn" id="removePortalBtn" style="flex: 1; border-color: #dc3545; color: #dc3545; display: none;" onclick="removePortal()">Remove Portal</button>
+    <div class="glass-card" style="border-radius: 16px; overflow: hidden;">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <div class="logo-container">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+                    </svg>
+                </div>
+                <div class="brand">
+                    <span class="brand-name">WorldPosta</span>
+                    <span class="brand-product">Super Connect</span>
                 </div>
             </div>
-
-            <div id="errorMessage" class="error"></div>
-
-            <form id="loginForm" class="login-form">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="username" placeholder="Username" required>
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="password" placeholder="Password" required>
-                </div>
-                <button type="submit" id="connectBtn" class="connect-btn">Connect</button>
-            </form>
+            <button class="close-btn" onclick="closeWindow()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
         </div>
 
-        <!-- Connected view -->
-        <div id="connectedView" class="hidden">
-            <div class="status-section">
-                <div class="status-title">✓ Connected</div>
-                <div class="status-item" id="connectedPortal">Portal: -</div>
-                <div class="status-item" id="connectedUser">User: -</div>
-                <div class="status-item" id="connectedIP">IP: -</div>
+        <div class="container">
+            <!-- No portals view -->
+            <div id="noPortalView" class="no-portal-view animate-fade-in">
+                <p>No portals configured</p>
+                <button class="btn btn-secondary btn-full" onclick="addPortal()">Add Portal</button>
             </div>
-            <button class="connect-btn disconnect-btn" onclick="disconnect()">Disconnect</button>
+
+            <!-- Login view -->
+            <div id="loginView" class="hidden animate-fade-in">
+                <!-- Portal Selection -->
+                <div class="form-group">
+                    <label>Portal</label>
+                    <div class="dropdown-container">
+                        <button type="button" class="dropdown-button" id="dropdownButton" onclick="toggleDropdown()">
+                            <span id="selectedPortalName" class="placeholder">Select a portal</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu" id="dropdownMenu"></div>
+                    </div>
+                </div>
+
+                <!-- Portal Actions -->
+                <div class="portal-actions">
+                    <button class="btn btn-secondary" onclick="addPortal()">Add portal</button>
+                    <button class="btn btn-outline-danger" id="removePortalBtn" onclick="removePortal()" style="display: none;">Remove portal</button>
+                </div>
+
+                <div id="errorMessage" class="error-message"></div>
+
+                <form id="loginForm" style="margin-top: 16px;">
+                    <!-- Username -->
+                    <div class="form-group">
+                        <label>User name</label>
+                        <input type="text" id="username" class="input-field" placeholder="Username" required>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="password" class="input-field" placeholder="Password" required>
+                    </div>
+
+                    <!-- Connect Button -->
+                    <button type="submit" id="connectBtn" class="btn btn-primary btn-full">Connect</button>
+                </form>
+            </div>
+
+            <!-- Connected view -->
+            <div id="connectedView" class="hidden connected-view animate-fade-in">
+                <!-- Signal Icon -->
+                <div class="signal-container">
+                    <svg class="signal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                        <line x1="12" y1="20" x2="12.01" y2="20"/>
+                    </svg>
+                </div>
+
+                <!-- Status Card -->
+                <div class="status-card">
+                    <div class="status-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Connected</span>
+                    </div>
+                    <div class="status-info">
+                        <p><span class="label">Portal:</span> <span id="connectedPortal">-</span></p>
+                        <p><span class="label">User:</span> <span id="connectedUser">-</span></p>
+                        <p><span class="label">IP:</span> <span id="connectedIP">-</span></p>
+                    </div>
+                </div>
+
+                <!-- Disconnect Button -->
+                <button class="btn btn-danger btn-full" onclick="disconnect()">Disconnect</button>
+            </div>
         </div>
     </div>
 
     <!-- Add Portal Modal -->
-    <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
-        <div class="modal" onclick="event.stopPropagation()">
-            <h3>Add Portal</h3>
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-backdrop" onclick="closeModal()"></div>
+        <div class="modal animate-fade-in">
+            <h2>Add Portal</h2>
             <div class="form-group">
-                <label>Portal Name</label>
-                <input type="text" id="modalPortalName" placeholder="My VPN Server" required>
+                <label>Portal name</label>
+                <input type="text" id="modalPortalName" class="input-field" placeholder="Your VPN Server" autofocus>
             </div>
             <div class="form-group">
                 <label>Server IP Address</label>
-                <input type="text" id="modalPortalIP" placeholder="192.168.1.1" required>
+                <input type="text" id="modalPortalIP" class="input-field" placeholder="192.168.1.1">
             </div>
             <div class="modal-buttons">
-                <button onclick="closeModal()">Cancel</button>
-                <button class="primary" onclick="submitPortal()">Add</button>
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitPortal()">Add</button>
             </div>
         </div>
     </div>
@@ -325,23 +576,35 @@
         const noPortalView = document.getElementById('noPortalView');
         const loginView = document.getElementById('loginView');
         const connectedView = document.getElementById('connectedView');
-        const portalSelect = document.getElementById('portalSelect');
         const loginForm = document.getElementById('loginForm');
         const errorMessage = document.getElementById('errorMessage');
         const connectBtn = document.getElementById('connectBtn');
+        const dropdownButton = document.getElementById('dropdownButton');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        const selectedPortalName = document.getElementById('selectedPortalName');
 
-        // Load logo
-        const logoImg = document.getElementById('logo');
-        logoImg.src = 'logo.jpeg';
+        let portals = [];
+        let selectedPortalId = null;
 
         // Initialize
         async function init() {
             await loadPortals();
             await checkConnectionStatus();
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.dropdown-container')) {
+                    dropdownMenu.classList.remove('open');
+                }
+            });
+        }
+
+        function toggleDropdown() {
+            dropdownMenu.classList.toggle('open');
         }
 
         async function loadPortals() {
-            const portals = await window.vpnAPI.getPortals();
+            portals = await window.vpnAPI.getPortals();
 
             if (portals.length === 0) {
                 noPortalView.classList.remove('hidden');
@@ -352,17 +615,31 @@
             noPortalView.classList.add('hidden');
             loginView.classList.remove('hidden');
 
-            portalSelect.innerHTML = '<option value="">Select a portal...</option>';
+            // Build dropdown menu
+            dropdownMenu.innerHTML = '';
             portals.forEach(portal => {
-                const option = document.createElement('option');
-                option.value = portal.id;
-                option.textContent = portal.name;
-                portalSelect.appendChild(option);
+                const item = document.createElement('button');
+                item.className = 'dropdown-item';
+                item.textContent = portal.name;
+                item.onclick = () => selectPortal(portal);
+                dropdownMenu.appendChild(item);
             });
 
             const currentPortal = await window.vpnAPI.getCurrentPortal();
             if (currentPortal) {
-                portalSelect.value = currentPortal.id;
+                selectPortal(currentPortal, false);
+            }
+        }
+
+        function selectPortal(portal, notify = true) {
+            selectedPortalId = portal.id;
+            selectedPortalName.textContent = portal.name;
+            selectedPortalName.classList.remove('placeholder');
+            dropdownMenu.classList.remove('open');
+            document.getElementById('removePortalBtn').style.display = 'block';
+
+            if (notify) {
+                window.vpnAPI.selectPortal(portal.id);
             }
         }
 
@@ -373,20 +650,10 @@
             }
         }
 
-        portalSelect.addEventListener('change', async (e) => {
-            const removeBtn = document.getElementById('removePortalBtn');
-            if (e.target.value) {
-                await window.vpnAPI.selectPortal(e.target.value);
-                removeBtn.style.display = 'block';
-            } else {
-                removeBtn.style.display = 'none';
-            }
-        });
-
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            if (!portalSelect.value) {
+            if (!selectedPortalId) {
                 showError('Please select a portal');
                 return;
             }
@@ -396,13 +663,12 @@
 
             errorMessage.style.display = 'none';
             connectBtn.disabled = true;
-            connectBtn.textContent = 'Authenticating...';
+            connectBtn.textContent = 'Connecting...';
 
             try {
                 const loginResult = await window.vpnAPI.login({ username, password });
                 if (!loginResult.success) throw new Error(loginResult.error);
 
-                connectBtn.textContent = 'Connecting...';
                 const connectResult = await window.vpnAPI.connect();
                 if (!connectResult.success) throw new Error(connectResult.error);
 
@@ -416,9 +682,10 @@
         });
 
         function addPortal() {
-            document.getElementById('modalOverlay').style.display = 'block';
+            document.getElementById('modalOverlay').style.display = 'flex';
             document.getElementById('modalPortalName').value = '';
             document.getElementById('modalPortalIP').value = '';
+            document.getElementById('modalPortalName').focus();
         }
 
         function closeModal() {
@@ -444,13 +711,16 @@
         }
 
         async function removePortal() {
-            const selectedPortalId = portalSelect.value;
             if (!selectedPortalId) return;
 
-            const selectedPortal = portalSelect.options[portalSelect.selectedIndex].text;
-            if (confirm(`Remove portal "${selectedPortal}"?`)) {
+            const portal = portals.find(p => p.id === selectedPortalId);
+            if (portal && confirm(`Remove portal "${portal.name}"?`)) {
                 const result = await window.vpnAPI.removePortal(selectedPortalId);
                 if (result.success) {
+                    selectedPortalId = null;
+                    selectedPortalName.textContent = 'Select a portal';
+                    selectedPortalName.classList.add('placeholder');
+                    document.getElementById('removePortalBtn').style.display = 'none';
                     await loadPortals();
                 } else {
                     showError(result.error);
@@ -467,11 +737,12 @@
 
         function showConnectedView(status) {
             loginView.classList.add('hidden');
+            noPortalView.classList.add('hidden');
             connectedView.classList.remove('hidden');
 
-            document.getElementById('connectedPortal').textContent = 'Portal: ' + (status.portal?.name || '-');
-            document.getElementById('connectedUser').textContent = 'User: ' + (status.user?.username || '-');
-            document.getElementById('connectedIP').textContent = 'IP: Checking...';
+            document.getElementById('connectedPortal').textContent = status.portal?.name || '-';
+            document.getElementById('connectedUser').textContent = status.user?.username || '-';
+            document.getElementById('connectedIP').textContent = 'Checking...';
         }
 
         function showLoginView() {
@@ -491,6 +762,14 @@
         async function closeWindow() {
             await window.vpnAPI.close();
         }
+
+        // Handle Enter key in modal inputs
+        document.getElementById('modalPortalIP').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitPortal();
+            }
+        });
 
         init();
     </script>
