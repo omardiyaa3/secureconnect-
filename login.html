@@ -335,6 +335,7 @@
             align-items: center;
             justify-content: center;
             padding: 48px 24px;
+            min-height: 300px;
         }
 
         .no-portal-view p {
@@ -413,6 +414,8 @@
             right: 0;
             bottom: 0;
             z-index: 50;
+            align-items: center;
+            justify-content: center;
         }
 
         .modal-backdrop {
@@ -429,34 +432,47 @@
         .modal {
             position: relative;
             background: var(--dropdown-bg);
-            border-radius: 16px;
-            padding: 20px;
-            margin: auto;
-            width: calc(100% - 32px);
-            max-width: 320px;
-            top: 50%;
-            transform: translateY(-50%);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            width: calc(100% - 40px);
+            max-width: 280px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             border: 1px solid var(--border);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
         }
 
         .modal h2 {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
             color: var(--foreground);
-            margin-bottom: 16px;
+            margin-bottom: 12px;
+        }
+
+        .modal .form-group {
+            margin-bottom: 12px;
+        }
+
+        .modal .input-field {
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+
+        .modal label {
+            font-size: 13px;
+            margin-bottom: 6px;
         }
 
         .modal-buttons {
             display: flex;
-            gap: 12px;
-            margin-top: 20px;
+            gap: 10px;
+            margin-top: 14px;
         }
 
         .modal-buttons .btn {
             flex: 1;
+            padding: 8px 12px;
+            font-size: 13px;
         }
 
         /* Animation */
@@ -480,16 +496,14 @@
         <div class="header">
             <div class="header-left">
                 <div class="logo-container" style="background: transparent;">
-                    <!-- WorldPosta Logo -->
-                    <svg class="logo-icon" viewBox="0 0 512 512" style="width: 28px; height: 28px;">
-                        <circle cx="256" cy="256" r="240" fill="#679a41"/>
-                        <path d="M 256 80 L 380 140 L 380 260 Q 380 360 256 420 Q 132 360 132 260 L 132 140 Z" fill="#ffffff" opacity="0.95"/>
-                        <path d="M 256 110 L 360 160 L 360 260 Q 360 340 256 390 Q 152 340 152 260 L 152 160 Z" fill="none" stroke="#293c51" stroke-width="3"/>
-                        <rect x="236" y="200" width="40" height="50" rx="5" fill="#293c51"/>
-                        <path d="M 226 220 Q 226 190 256 190 Q 286 190 286 220" fill="none" stroke="#293c51" stroke-width="8" stroke-linecap="round"/>
-                        <circle cx="256" cy="280" r="6" fill="#679a41"/>
-                        <circle cx="256" cy="300" r="6" fill="#679a41"/>
-                        <circle cx="256" cy="320" r="6" fill="#679a41"/>
+                    <!-- WorldPosta Cloud+WP Logo -->
+                    <svg class="logo-icon" viewBox="0 0 100 80" style="width: 32px; height: 26px;">
+                        <!-- Cloud shape -->
+                        <path d="M75 65 L25 65 C11 65 0 54 0 40 C0 28 8 18 20 15 C22 6 31 0 42 0 C54 0 64 8 67 19 C68 19 69 18 70 18 C84 18 95 29 95 43 C95 54 87 63 76 65 L85 65 C92 62 97 54 97 45 C97 33 88 23 76 21 C76 21 76 20 76 19 C76 8 66 0 54 1 C48 1 43 4 40 8 C36 3 29 0 22 2 C12 4 5 14 6 24 C2 29 0 36 0 43 C0 56 10 67 23 68 L77 68 C90 67 100 56 100 43 C100 30 90 19 77 18" fill="#293c51"/>
+                        <!-- W letter -->
+                        <text x="22" y="52" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#679a41">W</text>
+                        <!-- P letter -->
+                        <text x="58" y="52" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#679a41">P</text>
                     </svg>
                 </div>
                 <div class="brand">

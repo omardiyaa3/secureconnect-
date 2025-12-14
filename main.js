@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.20';
+const APP_VERSION = '2.0.21';
 
 // Enable transparent visuals for Linux
 if (process.platform === 'linux') {
@@ -40,15 +40,15 @@ let portals = [];
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 
-// VPN icon for menu bar - Lock icon (locked/unlocked)
+// VPN icon for menu bar - WorldPosta cloud icon
 const createVPNIcon = (connected) => {
     const isDev = !app.isPackaged;
     const resourcesPath = isDev
         ? path.join(__dirname, 'resources')
         : process.resourcesPath;
 
-    // Connected = locked, Disconnected = unlocked
-    const iconName = connected ? 'lock-locked.png' : 'lock-unlocked.png';
+    // Connected = filled cloud, Disconnected = outline cloud
+    const iconName = connected ? 'wp-connected.png' : 'wp-disconnected.png';
     const iconPath = path.join(resourcesPath, 'icons', iconName);
 
     // Read PNG file as buffer and create image
