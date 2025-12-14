@@ -14,29 +14,29 @@
             --destructive-hover: #dc2626;
             --destructive-foreground: #ffffff;
             --foreground: #1e293b;
-            --card-bg: rgba(255, 255, 255, 0.7);
+            --card-bg: rgba(255, 255, 255, 0.15);
             --muted-foreground: #64748b;
-            --border: rgba(0, 0, 0, 0.1);
-            --secondary: rgba(241, 245, 249, 0.8);
-            --secondary-hover: rgba(226, 232, 240, 0.9);
-            --input-bg: rgba(255, 255, 255, 0.6);
-            --dropdown-bg: rgba(255, 255, 255, 0.95);
-            --status-card-bg: rgba(241, 245, 249, 0.6);
-            --modal-backdrop: rgba(255, 255, 255, 0.4);
+            --border: rgba(255, 255, 255, 0.3);
+            --secondary: rgba(255, 255, 255, 0.2);
+            --secondary-hover: rgba(255, 255, 255, 0.3);
+            --input-bg: rgba(255, 255, 255, 0.2);
+            --dropdown-bg: rgba(255, 255, 255, 0.8);
+            --status-card-bg: rgba(255, 255, 255, 0.15);
+            --modal-backdrop: rgba(0, 0, 0, 0.3);
         }
 
         /* Dark mode */
         @media (prefers-color-scheme: dark) {
             :root {
                 --foreground: #f8fafc;
-                --card-bg: rgba(30, 41, 59, 0.7);
+                --card-bg: rgba(0, 0, 0, 0.15);
                 --muted-foreground: #94a3b8;
-                --border: rgba(255, 255, 255, 0.1);
-                --secondary: rgba(51, 65, 85, 0.8);
-                --secondary-hover: rgba(71, 85, 105, 0.9);
-                --input-bg: rgba(30, 41, 59, 0.6);
-                --dropdown-bg: rgba(30, 41, 59, 0.95);
-                --status-card-bg: rgba(51, 65, 85, 0.4);
+                --border: rgba(255, 255, 255, 0.15);
+                --secondary: rgba(255, 255, 255, 0.1);
+                --secondary-hover: rgba(255, 255, 255, 0.2);
+                --input-bg: rgba(255, 255, 255, 0.1);
+                --dropdown-bg: rgba(30, 30, 30, 0.8);
+                --status-card-bg: rgba(255, 255, 255, 0.1);
                 --modal-backdrop: rgba(0, 0, 0, 0.4);
             }
         }
@@ -59,11 +59,9 @@
             overflow-x: hidden;
         }
 
-        /* Glass card effect - frosted glass showing desktop */
+        /* Glass card effect - transparent to show native vibrancy/blur */
         .glass-card {
             background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--border);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
