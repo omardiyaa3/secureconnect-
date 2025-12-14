@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.23';
+const APP_VERSION = '2.0.24';
 
 // Enable transparent visuals for Linux
 if (process.platform === 'linux') {
@@ -48,14 +48,32 @@ const createVPNIcon = (connected) => {
         : process.resourcesPath;
 
     // Connected = filled cloud, Disconnected = outline cloud
-    const iconName = connected ? 'wp-connected.png' : 'wp-disconnected.png';
-    const iconPath = path.join(resourcesPath, 'icons', iconName);
+    const iconBase = connected ? 'wp-connected' : 'wp-disconnected';
+    const iconPath = path.join(resourcesPath, 'icons', `${iconBase}.png`);
+    const icon2xPath = path.join(resourcesPath, 'icons', `${iconBase}@2x.png`);
 
-    // Read PNG file as buffer and create image
-    const imgBuffer = fsSync.readFileSync(iconPath);
-    const img = nativeImage.createFromBuffer(imgBuffer);
+    // Create image with @1x and @2x support for retina displays
+    const img = nativeImage.createEmpty();
 
-    // Set as template image for macOS
+    // Add @1x representation
+    if (fsSync.existsSync(iconPath)) {
+        const buffer1x = fsSync.readFileSync(iconPath);
+        img.addRepresentation({
+            scaleFactor: 1.0,
+            buffer: buffer1x
+        });
+    }
+
+    // Add @2x representation for retina
+    if (fsSync.existsSync(icon2xPath)) {
+        const buffer2x = fsSync.readFileSync(icon2xPath);
+        img.addRepresentation({
+            scaleFactor: 2.0,
+            buffer: buffer2x
+        });
+    }
+
+    // Set as template image for macOS (renders as black/white based on menu bar theme)
     img.setTemplateImage(true);
 
     return img;
@@ -106,8 +124,8 @@ function updateTrayIcon() {
 
 function createWindow() {
     const windowOptions = {
-        width: 320,
-        height: 420,
+        width: 300,
+        height: 380,
         resizable: false,
         show: false,
         frame: false,

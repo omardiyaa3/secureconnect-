@@ -54,8 +54,8 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
             color: var(--foreground);
-            width: 320px;
-            min-height: 400px;
+            width: 300px;
+            min-height: 360px;
             overflow-x: hidden;
         }
 
@@ -66,7 +66,8 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
-            min-height: 400px;
+            min-height: 360px;
+            border-radius: 20px;
         }
 
         /* Header */
@@ -74,8 +75,14 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border);
+            padding: 10px 14px;
+            border-bottom: 2px solid #1e293b;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .header {
+                border-bottom-color: #f8fafc;
+            }
         }
 
         .header-left {
@@ -116,6 +123,13 @@
             font-size: 16px;
             font-weight: 500;
             color: var(--primary);
+        }
+
+        .header-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--foreground);
+            letter-spacing: 0.3px;
         }
 
         .close-btn {
@@ -305,6 +319,7 @@
 
         .btn-full {
             width: 100%;
+            margin-bottom: 12px;
         }
 
         /* Portal actions */
@@ -497,25 +512,12 @@
     </style>
 </head>
 <body>
-    <div class="glass-card" style="border-radius: 16px; overflow: hidden;">
+    <div class="glass-card" style="overflow: hidden;">
         <!-- Header -->
         <div class="header">
-            <div class="header-left">
-                <div class="logo-container" style="background: transparent;">
-                    <!-- WorldPosta Logo -->
-                    <img src="data:image/png;base64,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" alt="WorldPosta" style="width: 32px; height: 32px;">
-                </div>
-                <div class="brand">
-                    <span class="brand-name">WorldPosta</span>
-                    <span class="brand-product">Super Connect</span>
-                </div>
-            </div>
-            <button class="close-btn" onclick="closeWindow()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
+            <!-- WorldPosta Logo -->
+            <img src="data:image/png;base64,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" alt="WorldPosta" style="width: 32px; height: 32px;">
+            <span class="header-title">Secure Connect</span>
         </div>
 
         <div class="container">
