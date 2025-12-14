@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Super Connect</title>
     <style>
-        /* Light mode (default) */
+        /* Light mode (default) - Glassy look */
         :root {
             --primary: #22c55e;
             --primary-hover: #16a34a;
@@ -14,30 +14,30 @@
             --destructive-hover: #dc2626;
             --destructive-foreground: #ffffff;
             --foreground: #1e293b;
-            --card-bg: rgba(255, 255, 255, 0.15);
+            --card-bg: transparent;
             --muted-foreground: #64748b;
-            --border: rgba(255, 255, 255, 0.3);
-            --secondary: rgba(255, 255, 255, 0.2);
-            --secondary-hover: rgba(255, 255, 255, 0.3);
-            --input-bg: rgba(255, 255, 255, 0.2);
-            --dropdown-bg: rgba(255, 255, 255, 0.8);
-            --status-card-bg: rgba(255, 255, 255, 0.15);
+            --border: rgba(255, 255, 255, 0.25);
+            --secondary: rgba(255, 255, 255, 0.15);
+            --secondary-hover: rgba(255, 255, 255, 0.25);
+            --input-bg: rgba(255, 255, 255, 0.15);
+            --dropdown-bg: rgba(255, 255, 255, 0.9);
+            --status-card-bg: rgba(255, 255, 255, 0.1);
             --modal-backdrop: rgba(0, 0, 0, 0.3);
         }
 
-        /* Dark mode */
+        /* Dark mode - Glassy look */
         @media (prefers-color-scheme: dark) {
             :root {
-                --foreground: #f8fafc;
-                --card-bg: rgba(0, 0, 0, 0.15);
-                --muted-foreground: #94a3b8;
-                --border: rgba(255, 255, 255, 0.15);
+                --foreground: #ffffff;
+                --card-bg: transparent;
+                --muted-foreground: rgba(255, 255, 255, 0.6);
+                --border: rgba(255, 255, 255, 0.2);
                 --secondary: rgba(255, 255, 255, 0.1);
                 --secondary-hover: rgba(255, 255, 255, 0.2);
-                --input-bg: rgba(255, 255, 255, 0.1);
-                --dropdown-bg: rgba(30, 30, 30, 0.8);
-                --status-card-bg: rgba(255, 255, 255, 0.1);
-                --modal-backdrop: rgba(0, 0, 0, 0.4);
+                --input-bg: rgba(255, 255, 255, 0.08);
+                --dropdown-bg: rgba(40, 40, 40, 0.95);
+                --status-card-bg: rgba(255, 255, 255, 0.08);
+                --modal-backdrop: rgba(0, 0, 0, 0.5);
             }
         }
 
@@ -59,11 +59,10 @@
             overflow-x: hidden;
         }
 
-        /* Glass card effect - transparent to show native vibrancy/blur */
+        /* Glass card effect - fully transparent to show native vibrancy/blur */
         .glass-card {
-            background: var(--card-bg);
+            background: transparent;
             border: 1px solid var(--border);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
         /* Header */
