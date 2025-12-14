@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Super Connect</title>
     <style>
+        /* Light mode (default) */
         :root {
             --primary: #3b82f6;
             --primary-hover: #2563eb;
@@ -12,14 +13,32 @@
             --destructive: #ef4444;
             --destructive-hover: #dc2626;
             --destructive-foreground: #ffffff;
-            --background: #0f172a;
-            --foreground: #f8fafc;
-            --card: #1e293b;
-            --card-foreground: #f8fafc;
-            --muted-foreground: #94a3b8;
-            --border: #334155;
-            --secondary: #334155;
-            --secondary-hover: #475569;
+            --foreground: #1e293b;
+            --card-bg: rgba(255, 255, 255, 0.7);
+            --muted-foreground: #64748b;
+            --border: rgba(0, 0, 0, 0.1);
+            --secondary: rgba(241, 245, 249, 0.8);
+            --secondary-hover: rgba(226, 232, 240, 0.9);
+            --input-bg: rgba(255, 255, 255, 0.6);
+            --dropdown-bg: rgba(255, 255, 255, 0.95);
+            --status-card-bg: rgba(241, 245, 249, 0.6);
+            --modal-backdrop: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Dark mode */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --foreground: #f8fafc;
+                --card-bg: rgba(30, 41, 59, 0.7);
+                --muted-foreground: #94a3b8;
+                --border: rgba(255, 255, 255, 0.1);
+                --secondary: rgba(51, 65, 85, 0.8);
+                --secondary-hover: rgba(71, 85, 105, 0.9);
+                --input-bg: rgba(30, 41, 59, 0.6);
+                --dropdown-bg: rgba(30, 41, 59, 0.95);
+                --status-card-bg: rgba(51, 65, 85, 0.4);
+                --modal-backdrop: rgba(0, 0, 0, 0.4);
+            }
         }
 
         * {
@@ -28,20 +47,25 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            background: transparent !important;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-            background: var(--background);
             color: var(--foreground);
-            width: 360px;
-            min-height: 480px;
+            width: 380px;
+            min-height: 500px;
             overflow-x: hidden;
         }
 
-        /* Glass card effect */
+        /* Glass card effect - frosted glass showing desktop */
         .glass-card {
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(51, 65, 85, 0.5);
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
         /* Header */
@@ -50,7 +74,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 12px 16px;
-            border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+            border-bottom: 1px solid var(--border);
         }
 
         .header-left {
@@ -107,7 +131,7 @@
         }
 
         .close-btn:hover {
-            background: rgba(51, 65, 85, 0.8);
+            background: var(--secondary);
         }
 
         .close-btn svg {
@@ -135,7 +159,7 @@
             border: 1px solid var(--border);
             border-radius: 8px;
             font-size: 14px;
-            background: var(--card);
+            background: var(--input-bg);
             color: var(--foreground);
             transition: border-color 0.2s;
         }
@@ -163,7 +187,7 @@
             border: 1px solid var(--border);
             border-radius: 8px;
             font-size: 14px;
-            background: var(--card);
+            background: var(--input-bg);
             color: var(--foreground);
             cursor: pointer;
             text-align: left;
@@ -191,12 +215,14 @@
             left: 0;
             right: 0;
             margin-top: 4px;
-            background: var(--card);
+            background: var(--dropdown-bg);
             border: 1px solid var(--border);
             border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
             z-index: 50;
             overflow: hidden;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
 
         .dropdown-menu.open {
@@ -216,7 +242,7 @@
         }
 
         .dropdown-item:hover {
-            background: rgba(51, 65, 85, 0.6);
+            background: var(--secondary);
         }
 
         /* Buttons */
@@ -343,7 +369,7 @@
         }
 
         .status-card {
-            background: rgba(51, 65, 85, 0.4);
+            background: var(--status-card-bg);
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 24px;
@@ -397,13 +423,14 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(15, 23, 42, 0.4);
+            background: var(--modal-backdrop);
             backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
         }
 
         .modal {
             position: relative;
-            background: var(--card);
+            background: var(--dropdown-bg);
             border-radius: 16px;
             padding: 20px;
             margin: auto;
@@ -411,8 +438,10 @@
             max-width: 320px;
             top: 50%;
             transform: translateY(-50%);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(51, 65, 85, 0.5);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         }
 
         .modal h2 {

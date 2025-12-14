@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.13';
+const APP_VERSION = '2.0.15';
 
 // Configure auto-updater
 autoUpdater.autoDownload = false;
@@ -99,21 +99,30 @@ function updateTrayIcon() {
 }
 
 function createWindow() {
-    mainWindow = new BrowserWindow({
-        width: 360,
-        height: 480,
+    const windowOptions = {
+        width: 380,
+        height: 500,
         resizable: false,
         show: false,
         frame: false,
-        transparent: false,
+        transparent: true,
         alwaysOnTop: true,
         skipTaskbar: true,
+        hasShadow: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false
         }
-    });
+    };
+
+    // Add vibrancy for macOS (frosted glass effect)
+    if (process.platform === 'darwin') {
+        windowOptions.vibrancy = 'under-window';
+        windowOptions.visualEffectState = 'active';
+    }
+
+    mainWindow = new BrowserWindow(windowOptions);
 
     mainWindow.loadFile('login.html');
 
