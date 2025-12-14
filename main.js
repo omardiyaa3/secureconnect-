@@ -7,7 +7,13 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.16';
+const APP_VERSION = '2.0.17';
+
+// Enable transparent visuals for Linux
+if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('enable-transparent-visuals');
+    app.commandLine.appendSwitch('disable-gpu');
+}
 
 // Configure auto-updater
 autoUpdater.autoDownload = false;
@@ -116,10 +122,19 @@ function createWindow() {
         }
     };
 
-    // Add vibrancy for macOS (frosted glass effect)
+    // Platform-specific glassmorphism/blur effects
     if (process.platform === 'darwin') {
-        windowOptions.vibrancy = 'under-window';
+        // macOS: Use vibrancy for native blur effect
+        windowOptions.vibrancy = 'fullscreen-ui';
         windowOptions.visualEffectState = 'active';
+        windowOptions.backgroundColor = '#00000000'; // Fully transparent
+    } else if (process.platform === 'win32') {
+        // Windows 10/11: Use acrylic/mica blur effect
+        windowOptions.backgroundMaterial = 'acrylic';
+        windowOptions.backgroundColor = '#00000000';
+    } else {
+        // Linux: Transparent background (blur handled by compositor if available)
+        windowOptions.backgroundColor = '#00000000';
     }
 
     mainWindow = new BrowserWindow(windowOptions);
