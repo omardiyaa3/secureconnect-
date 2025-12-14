@@ -7,16 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-// Import electron-acrylic-window for Windows blur effect
-let setVibrancy;
-try {
-    const acrylic = require('electron-acrylic-window');
-    setVibrancy = acrylic.setVibrancy;
-} catch (e) {
-    console.log('electron-acrylic-window not available');
-}
-
-const APP_VERSION = '2.0.19';
+const APP_VERSION = '2.0.18';
 
 // Enable transparent visuals for Linux
 if (process.platform === 'linux') {
@@ -133,29 +124,20 @@ function createWindow() {
 
     // Platform-specific glassmorphism/blur effects
     if (process.platform === 'darwin') {
-        // macOS: Use vibrancy for native frosted glass effect
-        windowOptions.vibrancy = 'hud'; // 'hud' gives better glass look
+        // macOS: Use vibrancy for native blur effect
+        windowOptions.vibrancy = 'fullscreen-ui';
         windowOptions.visualEffectState = 'active';
-        windowOptions.backgroundColor = '#00000000';
+        windowOptions.backgroundColor = '#00000000'; // Fully transparent
     } else if (process.platform === 'win32') {
-        // Windows: Will apply acrylic after window creation
+        // Windows 10/11: Use acrylic/mica blur effect
+        windowOptions.backgroundMaterial = 'acrylic';
         windowOptions.backgroundColor = '#00000000';
     } else {
-        // Linux: Transparent background
+        // Linux: Transparent background (blur handled by compositor if available)
         windowOptions.backgroundColor = '#00000000';
     }
 
     mainWindow = new BrowserWindow(windowOptions);
-
-    // Apply Windows acrylic blur effect after window is created
-    if (process.platform === 'win32' && setVibrancy) {
-        setVibrancy(mainWindow, {
-            theme: 'dark',
-            effect: 'acrylic',
-            useCustomWindowRefreshMethod: true,
-            disableOnBlur: false
-        });
-    }
 
     mainWindow.loadFile('login.html');
 
