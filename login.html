@@ -61,9 +61,9 @@
             overflow-x: hidden;
         }
 
-        /* Windows: Add semi-transparent background since no native blur */
+        /* Windows: Light frosted glass background */
         body.platform-win32 {
-            background: rgba(30, 41, 59, 0.92) !important;
+            background: rgba(235, 240, 248, 0.95) !important;
             border-radius: 20px;
         }
 
@@ -78,10 +78,23 @@
             border-radius: 20px;
         }
 
-        /* Windows: More visible card background */
+        /* Windows: Light frosted card */
         body.platform-win32 .glass-card {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Windows: Light mode inputs */
+        body.platform-win32 .input-field,
+        body.platform-win32 .dropdown-button {
+            background: rgba(255, 255, 255, 0.7);
+            border-color: rgba(0, 0, 0, 0.15);
+        }
+
+        /* Windows: Header line */
+        body.platform-win32 .header {
+            border-bottom-color: rgba(0, 0, 0, 0.1);
         }
 
         /* Header */
