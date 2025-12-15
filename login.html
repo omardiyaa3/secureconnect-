@@ -96,6 +96,25 @@
             border-bottom-color: rgba(0, 0, 0, 0.1);
         }
 
+        /* Windows Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            body.platform-win32 .glass-card {
+                background: rgba(30, 41, 59, 0.97);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            }
+
+            body.platform-win32 .input-field,
+            body.platform-win32 .dropdown-button {
+                background: rgba(255, 255, 255, 0.1);
+                border-color: rgba(255, 255, 255, 0.2);
+            }
+
+            body.platform-win32 .header {
+                border-bottom-color: rgba(255, 255, 255, 0.1);
+            }
+        }
+
         /* Header */
         .header {
             display: flex;
