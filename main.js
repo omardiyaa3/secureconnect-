@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.30';
+const APP_VERSION = '2.0.31';
 
 // Enable transparent visuals for Linux
 if (process.platform === 'linux') {
@@ -147,9 +147,10 @@ function createWindow() {
         windowOptions.visualEffectState = 'active';
         windowOptions.backgroundColor = '#00000000'; // Fully transparent
     } else if (process.platform === 'win32') {
-        // Windows: Semi-transparent background for glass effect
-        // Use a dark semi-transparent background since Windows lacks native vibrancy
-        windowOptions.backgroundColor = '#1a1a2eDD'; // Dark blue-ish with 87% opacity
+        // Windows: Solid dark background with slight transparency for glass effect
+        windowOptions.transparent = false; // Disable transparency to fix edge issues
+        windowOptions.backgroundColor = '#1e293b'; // Solid dark background
+        windowOptions.roundedCorners = true;
     } else {
         // Linux: Transparent background (blur handled by compositor if available)
         windowOptions.backgroundColor = '#00000000';
