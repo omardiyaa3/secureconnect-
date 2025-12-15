@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.27';
+const APP_VERSION = '2.0.28';
 
 // Enable transparent visuals for Linux
 if (process.platform === 'linux') {
@@ -557,6 +557,15 @@ ipcMain.handle('disconnect', async (event) => {
         currentUser = null;
         updateTrayIcon();
         return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('getVPNStatus', async () => {
+    try {
+        const status = await vpnManager.getStatus();
+        return { success: true, data: status };
     } catch (error) {
         return { success: false, error: error.message };
     }

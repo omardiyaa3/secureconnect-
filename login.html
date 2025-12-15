@@ -16,12 +16,13 @@
             --foreground: #1e293b;
             --card-bg: rgba(255, 255, 255, 0.15);
             --muted-foreground: #64748b;
-            --border: rgba(255, 255, 255, 0.3);
-            --secondary: rgba(255, 255, 255, 0.2);
-            --secondary-hover: rgba(255, 255, 255, 0.3);
-            --input-bg: rgba(255, 255, 255, 0.2);
-            --dropdown-bg: rgba(255, 255, 255, 0.8);
-            --status-card-bg: rgba(255, 255, 255, 0.15);
+            --border: rgba(0, 0, 0, 0.2);
+            --secondary: rgba(0, 0, 0, 0.08);
+            --secondary-hover: rgba(0, 0, 0, 0.12);
+            --input-bg: rgba(255, 255, 255, 0.5);
+            --input-border: rgba(0, 0, 0, 0.25);
+            --dropdown-bg: rgba(255, 255, 255, 0.95);
+            --status-card-bg: rgba(255, 255, 255, 0.3);
             --modal-backdrop: rgba(0, 0, 0, 0.3);
         }
 
@@ -35,6 +36,7 @@
                 --secondary: rgba(255, 255, 255, 0.1);
                 --secondary-hover: rgba(255, 255, 255, 0.2);
                 --input-bg: rgba(255, 255, 255, 0.1);
+                --input-border: rgba(255, 255, 255, 0.2);
                 --dropdown-bg: rgba(30, 30, 30, 0.8);
                 --status-card-bg: rgba(255, 255, 255, 0.1);
                 --modal-backdrop: rgba(0, 0, 0, 0.4);
@@ -175,7 +177,7 @@
         .input-field {
             width: 100%;
             padding: 8px 10px;
-            border: 1px solid var(--border);
+            border: 1px solid var(--input-border);
             border-radius: 6px;
             font-size: 13px;
             background: var(--input-bg);
@@ -203,7 +205,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 8px 10px;
-            border: 1px solid var(--border);
+            border: 1px solid var(--input-border);
             border-radius: 6px;
             font-size: 13px;
             background: var(--input-bg);
@@ -287,7 +289,7 @@
         .btn-secondary {
             background: var(--secondary);
             color: var(--foreground);
-            border: 1px solid var(--border);
+            border: 1px solid var(--input-border);
         }
 
         .btn-secondary:hover:not(:disabled) {
@@ -697,7 +699,7 @@
         async function checkConnectionStatus() {
             const status = await window.vpnAPI.getConnectionStatus();
             if (status.isConnected) {
-                showConnectedView(status);
+                await showConnectedView(status);
             }
         }
 
@@ -724,7 +726,7 @@
                 if (!connectResult.success) throw new Error(connectResult.error);
 
                 const status = await window.vpnAPI.getConnectionStatus();
-                showConnectedView(status);
+                await showConnectedView(status);
             } catch (error) {
                 showError(error.message);
                 connectBtn.disabled = false;
@@ -786,7 +788,7 @@
             }
         }
 
-        function showConnectedView(status) {
+        async function showConnectedView(status) {
             loginView.classList.add('hidden');
             noPortalView.classList.add('hidden');
             connectedView.classList.remove('hidden');
@@ -794,6 +796,18 @@
             document.getElementById('connectedPortal').textContent = status.portal?.name || '-';
             document.getElementById('connectedUser').textContent = status.user?.username || '-';
             document.getElementById('connectedIP').textContent = 'Checking...';
+
+            // Fetch actual tunnel IP from VPN status
+            try {
+                const vpnStatus = await window.vpnAPI.getVPNStatus();
+                if (vpnStatus.success && vpnStatus.data.tunnelIP) {
+                    document.getElementById('connectedIP').textContent = vpnStatus.data.tunnelIP;
+                } else {
+                    document.getElementById('connectedIP').textContent = '-';
+                }
+            } catch (error) {
+                document.getElementById('connectedIP').textContent = '-';
+            }
         }
 
         function showLoginView() {

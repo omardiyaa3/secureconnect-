@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld('vpnAPI', {
     login: (credentials) => ipcRenderer.invoke('login', credentials),
     connect: () => ipcRenderer.invoke('connect'),
     disconnect: () => ipcRenderer.invoke('disconnect'),
+    getVPNStatus: () => ipcRenderer.invoke('getVPNStatus'),
     close: () => ipcRenderer.invoke('close')
 });
