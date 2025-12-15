@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.28';
+const APP_VERSION = '2.0.29';
 
 // Enable transparent visuals for Linux
 if (process.platform === 'linux') {
@@ -180,7 +180,16 @@ function showWindow() {
     const trayBounds = tray.getBounds();
     const windowBounds = mainWindow.getBounds();
     const x = Math.round(trayBounds.x + (trayBounds.width / 2) - (windowBounds.width / 2));
-    const y = Math.round(trayBounds.y + trayBounds.height + 5);
+
+    let y;
+    if (process.platform === 'win32') {
+        // Windows: taskbar at bottom, open window above tray icon
+        y = Math.round(trayBounds.y - windowBounds.height - 5);
+    } else {
+        // macOS: menu bar at top, open window below tray icon
+        y = Math.round(trayBounds.y + trayBounds.height + 5);
+    }
+
     mainWindow.setPosition(x, y);
     mainWindow.show();
     mainWindow.focus();

@@ -36,8 +36,16 @@ class VPNManager {
                 this.wgPath = '/opt/homebrew/bin/wg';
             }
         } else if (this.platform === 'win32') {
-            // Windows: WireGuard installation path (will be rebranded later)
-            this.wgQuickPath = 'C:\\Program Files\\WireGuard\\wg.exe';
+            // Windows: Use bundled rebranded binaries
+            this.wgPath = path.join(binPath, 'secureconnect-ctl.exe');
+            this.wireguardExe = path.join(binPath, 'secureconnect-vpn.exe');
+
+            // Fallback to system WireGuard if bundled not found
+            if (!require('fs').existsSync(this.wgPath)) {
+                console.warn('Bundled binaries not found, falling back to system WireGuard');
+                this.wgPath = 'C:\\Program Files\\WireGuard\\wg.exe';
+                this.wireguardExe = 'C:\\Program Files\\WireGuard\\wireguard.exe';
+            }
         } else {
             // Linux: Standard system path (will be rebranded later)
             this.wgQuickPath = '/usr/bin/wg-quick';
@@ -162,16 +170,31 @@ class VPNManager {
         await fs.writeFile(configFile, wgConfig, { mode: 0o600 });
 
         try {
-            // Clean up any existing interface before connecting
-            try {
-                console.log('Checking for existing VPN interface...');
-                await execAsync(`sudo "${this.wgQuickPath}" down "${configFile}" 2>/dev/null || true`);
-            } catch (e) {
-                // Ignore errors - interface might not exist
+            if (this.platform === 'win32') {
+                // Windows: Use wireguard.exe to install tunnel service
+                // First try to uninstall any existing tunnel
+                try {
+                    await execAsync(`"${this.wireguardExe}" /uninstalltunnelservice sc0`);
+                } catch (e) {
+                    // Ignore - tunnel might not exist
+                }
+
+                // Install and start the tunnel service
+                await execAsync(`"${this.wireguardExe}" /installtunnelservice "${configFile}"`);
+            } else {
+                // macOS/Linux: Use wg-quick
+                // Clean up any existing interface before connecting
+                try {
+                    console.log('Checking for existing VPN interface...');
+                    await execAsync(`sudo "${this.wgQuickPath}" down "${configFile}" 2>/dev/null || true`);
+                } catch (e) {
+                    // Ignore errors - interface might not exist
+                }
+
+                // Use direct sudo call (passwordless via sudoers configuration)
+                await execAsync(`sudo "${this.wgQuickPath}" up "${configFile}"`);
             }
 
-            // Use direct sudo call (passwordless via sudoers configuration)
-            await execAsync(`sudo "${this.wgQuickPath}" up "${configFile}"`);
             this.connected = true;
             return { success: true, message: 'Connected successfully' };
         } catch (error) {
@@ -188,22 +211,26 @@ class VPNManager {
 
         try {
             console.log('Disconnecting VPN...');
-            // Use direct sudo call (passwordless via sudoers configuration)
-            const { stdout, stderr } = await execAsync(`sudo "${this.wgQuickPath}" down "${configFile}"`);
-            console.log('wg-quick down output:', stdout);
-            if (stderr) console.log('wg-quick down stderr:', stderr);
 
-            // Verify interface is actually down
-            if (this.platform === 'darwin') {
-                try {
-                    // Check if interface still exists
-                    await execAsync('ifconfig utun9 2>&1');
-                    console.warn('Interface still exists after wg-quick down, removing manually');
-                    // Force remove if still exists
-                    await execAsync('sudo ifconfig utun9 down 2>&1 || true');
-                } catch {
-                    // Interface doesn't exist - good!
-                    console.log('VPN interface removed successfully');
+            if (this.platform === 'win32') {
+                // Windows: Uninstall the tunnel service
+                await execAsync(`"${this.wireguardExe}" /uninstalltunnelservice sc0`);
+                console.log('Windows tunnel service uninstalled');
+            } else {
+                // macOS/Linux: Use wg-quick (unchanged)
+                const { stdout, stderr } = await execAsync(`sudo "${this.wgQuickPath}" down "${configFile}"`);
+                console.log('wg-quick down output:', stdout);
+                if (stderr) console.log('wg-quick down stderr:', stderr);
+
+                // Verify interface is actually down
+                if (this.platform === 'darwin') {
+                    try {
+                        await execAsync('ifconfig utun9 2>&1');
+                        console.warn('Interface still exists after wg-quick down, removing manually');
+                        await execAsync('sudo ifconfig utun9 down 2>&1 || true');
+                    } catch {
+                        console.log('VPN interface removed successfully');
+                    }
                 }
             }
 
@@ -214,13 +241,16 @@ class VPNManager {
             return { success: true, message: 'Disconnected successfully' };
         } catch (error) {
             console.error('Disconnect error:', error);
-            // Even if disconnect fails, try to restore DNS and force cleanup
             await this.restoreDNSSettings();
 
-            // Force remove interface as last resort
+            // Force cleanup as last resort
             if (this.platform === 'darwin') {
                 try {
                     await execAsync('sudo ifconfig utun9 down 2>&1 || true');
+                } catch {}
+            } else if (this.platform === 'win32') {
+                try {
+                    await execAsync(`"${this.wireguardExe}" /uninstalltunnelservice sc0`);
                 } catch {}
             }
 

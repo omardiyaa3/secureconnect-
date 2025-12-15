@@ -1,6 +1,6 @@
 {
   "name": "secureconnect",
-  "version": "2.0.28",
+  "version": "2.0.29",
   "description": "SecureConnect - WorldPosta VPN Client",
   "main": "main.js",
   "scripts": {
@@ -85,17 +85,17 @@
       ]
     },
     "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "assets/icon.png"
+      "target": ["nsis"],
+      "icon": "assets/icon.png",
+      "requestedExecutionLevel": "requireAdministrator"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "runAfterFinish": true,
-      "perMachine": true
+      "perMachine": true,
+      "allowElevation": true
     },
     "linux": {
       "target": [
