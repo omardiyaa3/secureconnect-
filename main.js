@@ -7,7 +7,18 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.31';
+// Windows acrylic/blur effect
+let setVibrancy;
+if (process.platform === 'win32') {
+    try {
+        const acrylic = require('electron-acrylic-window');
+        setVibrancy = acrylic.setVibrancy;
+    } catch (e) {
+        console.warn('electron-acrylic-window not available:', e.message);
+    }
+}
+
+const APP_VERSION = '2.0.32';
 
 // Enable transparent visuals for Linux
 if (process.platform === 'linux') {
@@ -147,16 +158,25 @@ function createWindow() {
         windowOptions.visualEffectState = 'active';
         windowOptions.backgroundColor = '#00000000'; // Fully transparent
     } else if (process.platform === 'win32') {
-        // Windows: Solid dark background with slight transparency for glass effect
-        windowOptions.transparent = false; // Disable transparency to fix edge issues
-        windowOptions.backgroundColor = '#1e293b'; // Solid dark background
-        windowOptions.roundedCorners = true;
+        // Windows: Use acrylic blur effect (like macOS vibrancy)
+        windowOptions.transparent = true;
+        windowOptions.backgroundColor = '#00000000';
     } else {
         // Linux: Transparent background (blur handled by compositor if available)
         windowOptions.backgroundColor = '#00000000';
     }
 
     mainWindow = new BrowserWindow(windowOptions);
+
+    // Apply Windows acrylic effect
+    if (process.platform === 'win32' && setVibrancy) {
+        setVibrancy(mainWindow, {
+            theme: 'dark',
+            effect: 'acrylic',
+            useCustomWindowRefreshMethod: true,
+            disableOnBlur: false
+        });
+    }
 
     mainWindow.loadFile('login.html');
 
