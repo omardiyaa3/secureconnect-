@@ -61,6 +61,12 @@
             overflow-x: hidden;
         }
 
+        /* Windows: Add semi-transparent background since no native blur */
+        body.platform-win32 {
+            background: rgba(30, 41, 59, 0.92) !important;
+            border-radius: 20px;
+        }
+
         /* Glass card effect - transparent to show native vibrancy/blur */
         .glass-card {
             background: var(--card-bg);
@@ -70,6 +76,12 @@
             flex-direction: column;
             min-height: 360px;
             border-radius: 20px;
+        }
+
+        /* Windows: More visible card background */
+        body.platform-win32 .glass-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         /* Header */
@@ -641,6 +653,11 @@
 
         // Initialize
         async function init() {
+            // Add platform class for platform-specific styling
+            const platform = navigator.userAgent.includes('Windows') ? 'win32' :
+                            navigator.userAgent.includes('Mac') ? 'darwin' : 'linux';
+            document.body.classList.add('platform-' + platform);
+
             await loadPortals();
             await checkConnectionStatus();
 
