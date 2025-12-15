@@ -61,10 +61,9 @@
             overflow-x: hidden;
         }
 
-        /* Windows: Light frosted glass background */
+        /* Windows: Fully transparent body, card has the background */
         body.platform-win32 {
-            background: rgba(235, 240, 248, 0.95) !important;
-            border-radius: 20px;
+            background: transparent !important;
         }
 
         /* Glass card effect - transparent to show native vibrancy/blur */
@@ -78,11 +77,11 @@
             border-radius: 20px;
         }
 
-        /* Windows: Light frosted card */
+        /* Windows: Light frosted card with full background */
         body.platform-win32 .glass-card {
-            background: rgba(255, 255, 255, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            background: rgba(235, 240, 248, 0.97);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
         }
 
         /* Windows: Light mode inputs */
