@@ -213,16 +213,16 @@ class VPNManager {
                     // Ignore errors - interface might not exist
                 }
 
-                // Set environment variable to point to AmneziaWG binary for DPI bypass
-                let envPrefix = '';
+                // Use AmneziaWG binary for DPI bypass if available
                 if (useAwg && this.awgBinary) {
                     const awgDir = path.dirname(this.awgBinary);
-                    envPrefix = `WG_QUICK_USERSPACE_IMPLEMENTATION="${this.awgBinary}" PATH="${awgDir}:$PATH" `;
+                    // Use sh -c to set environment variables (sudo blocks env vars directly)
+                    const cmd = `sudo sh -c 'WG_QUICK_USERSPACE_IMPLEMENTATION="${this.awgBinary}" PATH="${awgDir}:$PATH" "${quickPath}" up "${configFile}"'`;
                     console.log('Using AmneziaWG for DPI bypass');
+                    await execAsync(cmd);
+                } else {
+                    await execAsync(`sudo "${quickPath}" up "${configFile}"`);
                 }
-
-                // Use direct sudo call (passwordless via sudoers configuration)
-                await execAsync(`sudo ${envPrefix}"${quickPath}" up "${configFile}"`);
                 console.log(`wg-quick up completed (AWG: ${useAwg})`);
             }
 
