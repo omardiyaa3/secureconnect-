@@ -490,8 +490,8 @@ ipcMain.handle('addPortal', async (event, data) => {
 
         const { name, ip } = data;
 
-        // Construct HTTPS endpoint with port 3000
-        const endpoint = `https://${ip}:3000`;
+        // Construct HTTPS endpoint with port 443
+        const endpoint = `https://${ip}:443`;
 
         // Check if portal already exists
         const exists = portals.find(p => p.endpoint === endpoint);

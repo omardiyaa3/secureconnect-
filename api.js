@@ -1,5 +1,5 @@
 class APIClient {
-    constructor(baseUrl = 'http://37.61.219.190:3000') {
+    constructor(baseUrl = 'https://37.61.219.190:443') {
         this.baseUrl = baseUrl;
         this.token = null;
         this.user = null;
