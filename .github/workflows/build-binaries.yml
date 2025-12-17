@@ -1,0 +1,155 @@
+name: Build SecureConnect Binaries
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-secureconnect-go:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            output: secureconnect-go-arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            output: secureconnect-go-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            output: secureconnect-go
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            output: secureconnect-go.exe
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Clone amneziawg-go
+        run: git clone https://github.com/amnezia-vpn/amneziawg-go.git
+
+      - name: Build secureconnect-go
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          cd amneziawg-go
+          go build -o ${{ matrix.output }} .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: secureconnect-go-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: amneziawg-go/${{ matrix.output }}
+
+  build-secureconnect-ctl:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+            output: secureconnect-ctl-arm64
+            cc: clang
+            cflags: "-target arm64-apple-macos11"
+          - os: macos-latest
+            platform: darwin
+            arch: amd64
+            output: secureconnect-ctl-amd64
+            cc: clang
+            cflags: "-target x86_64-apple-macos11"
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+            output: secureconnect-ctl
+            cc: gcc
+            cflags: ""
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clone amneziawg-tools
+        run: git clone https://github.com/amnezia-vpn/amneziawg-tools.git
+
+      - name: Build secureconnect-ctl (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          cd amneziawg-tools/src
+          make clean
+          make CC="${{ matrix.cc }}" CFLAGS="-O3 ${{ matrix.cflags }}" LDFLAGS="-s" PLATFORM=${{ matrix.platform }}
+          cp wg ../../${{ matrix.output }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: secureconnect-ctl-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ${{ matrix.output }}
+
+  package-binaries:
+    needs: [build-secureconnect-go, build-secureconnect-ctl]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Organize binaries
+        run: |
+          # macOS
+          mkdir -p resources/bin/darwin
+          cp artifacts/secureconnect-go-darwin-arm64/secureconnect-go-arm64 resources/bin/darwin/
+          cp artifacts/secureconnect-go-darwin-amd64/secureconnect-go-amd64 resources/bin/darwin/
+          cp artifacts/secureconnect-ctl-darwin-arm64/secureconnect-ctl-arm64 resources/bin/darwin/
+          cp artifacts/secureconnect-ctl-darwin-amd64/secureconnect-ctl-amd64 resources/bin/darwin/
+          chmod +x resources/bin/darwin/*
+
+          # Linux
+          mkdir -p resources/bin/linux
+          cp artifacts/secureconnect-go-linux-amd64/secureconnect-go resources/bin/linux/
+          cp artifacts/secureconnect-ctl-linux-amd64/secureconnect-ctl resources/bin/linux/
+          chmod +x resources/bin/linux/*
+
+          # Windows
+          mkdir -p resources/bin/win32
+          cp artifacts/secureconnect-go-windows-amd64/secureconnect-go.exe resources/bin/win32/
+
+          # List all
+          echo "=== macOS ===" && ls -la resources/bin/darwin/
+          echo "=== Linux ===" && ls -la resources/bin/linux/
+          echo "=== Windows ===" && ls -la resources/bin/win32/
+
+      - name: Upload packaged binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: secureconnect-binaries-all
+          path: resources/bin/
+
+      - name: Commit binaries (on main branch push)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add resources/bin/
+          git diff --staged --quiet || git commit -m "Update SecureConnect binaries [automated]"
+          git push
