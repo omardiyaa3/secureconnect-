@@ -1,7 +1,6 @@
 const { exec, spawn } = require('child_process');
 const { promisify } = require('util');
 const fs = require('fs').promises;
-const fsSync = require('fs');
 const path = require('path');
 const os = require('os');
 const { app } = require('electron');
@@ -40,7 +39,7 @@ class VPNManager {
             this.proxyPath = path.join(binPath, 'udp-obfs-' + arch);
 
             // Fallback to system paths if bundled binaries not found
-            if (!fsSync.existsSync(this.wgQuickPath)) {
+            if (!require('fs').existsSync(this.wgQuickPath)) {
                 console.warn('Bundled binaries not found, falling back to system paths');
                 this.wgQuickPath = '/opt/homebrew/bin/wg-quick';
                 this.wgPath = '/opt/homebrew/bin/wg';
@@ -52,7 +51,7 @@ class VPNManager {
             this.proxyPath = path.join(binPath, 'udp-obfs.exe');
 
             // Fallback to system WireGuard if bundled not found
-            if (!fsSync.existsSync(this.wgPath)) {
+            if (!require('fs').existsSync(this.wgPath)) {
                 console.warn('Bundled binaries not found, falling back to system WireGuard');
                 this.wgPath = 'C:\\Program Files\\WireGuard\\wg.exe';
                 this.wireguardExe = 'C:\\Program Files\\WireGuard\\wireguard.exe';
@@ -173,7 +172,7 @@ class VPNManager {
 
     async startProxy(remoteHost, remotePort, obfsKey) {
         // Check if proxy binary exists
-        if (!fsSync.existsSync(this.proxyPath)) {
+        if (!require('fs').existsSync(this.proxyPath)) {
             console.log('Proxy binary not found at:', this.proxyPath);
             return false;
         }
