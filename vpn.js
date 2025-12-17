@@ -1,6 +1,7 @@
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const { promisify } = require('util');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const os = require('os');
 const { app } = require('electron');
@@ -14,6 +15,11 @@ class VPNManager {
         this.connected = false;
         this.vpnConfig = null;
         this.platform = process.platform;
+
+        // Proxy state
+        this.proxyProcess = null;
+        this.proxyLocalPort = 51820;
+        this.useProxy = false;
 
         // Get path to bundled binaries
         const isDev = !app.isPackaged;
@@ -29,8 +35,12 @@ class VPNManager {
             this.wgQuickPath = path.join(binPath, 'secureconnect-vpn');
             this.wgPath = path.join(binPath, 'secureconnect-ctl');
 
+            // UDP obfuscation proxy - detect architecture
+            const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
+            this.proxyPath = path.join(binPath, 'udp-obfs-' + arch);
+
             // Fallback to system paths if bundled binaries not found
-            if (!require('fs').existsSync(this.wgQuickPath)) {
+            if (!fsSync.existsSync(this.wgQuickPath)) {
                 console.warn('Bundled binaries not found, falling back to system paths');
                 this.wgQuickPath = '/opt/homebrew/bin/wg-quick';
                 this.wgPath = '/opt/homebrew/bin/wg';
@@ -39,9 +49,10 @@ class VPNManager {
             // Windows: Use bundled rebranded binaries
             this.wgPath = path.join(binPath, 'secureconnect-ctl.exe');
             this.wireguardExe = path.join(binPath, 'secureconnect-vpn.exe');
+            this.proxyPath = path.join(binPath, 'udp-obfs.exe');
 
             // Fallback to system WireGuard if bundled not found
-            if (!require('fs').existsSync(this.wgPath)) {
+            if (!fsSync.existsSync(this.wgPath)) {
                 console.warn('Bundled binaries not found, falling back to system WireGuard');
                 this.wgPath = 'C:\\Program Files\\WireGuard\\wg.exe';
                 this.wireguardExe = 'C:\\Program Files\\WireGuard\\wireguard.exe';
@@ -49,6 +60,7 @@ class VPNManager {
         } else {
             // Linux: Standard system path (will be rebranded later)
             this.wgQuickPath = '/usr/bin/wg-quick';
+            this.proxyPath = '/usr/local/bin/udp-obfs';
         }
 
         this.originalDNS = null;
@@ -159,13 +171,116 @@ class VPNManager {
         }
     }
 
+    async startProxy(remoteHost, remotePort, obfsKey) {
+        // Check if proxy binary exists
+        if (!fsSync.existsSync(this.proxyPath)) {
+            console.log('Proxy binary not found at:', this.proxyPath);
+            return false;
+        }
+
+        if (this.proxyProcess) {
+            console.log('Proxy already running');
+            return true;
+        }
+
+        const remoteAddr = remoteHost + ':' + remotePort;
+        const listenAddr = '127.0.0.1:' + this.proxyLocalPort;
+
+        console.log('Starting UDP obfuscation proxy:', listenAddr, '->', remoteAddr);
+
+        return new Promise((resolve) => {
+            try {
+                const args = [
+                    '-mode', 'client',
+                    '-listen', listenAddr,
+                    '-remote', remoteAddr,
+                    '-key', obfsKey
+                ];
+
+                this.proxyProcess = spawn(this.proxyPath, args, {
+                    stdio: ['ignore', 'pipe', 'pipe'],
+                    detached: false,
+                    windowsHide: true
+                });
+
+                this.proxyProcess.stdout.on('data', (data) => {
+                    console.log('[proxy]', data.toString().trim());
+                });
+
+                this.proxyProcess.stderr.on('data', (data) => {
+                    console.error('[proxy]', data.toString().trim());
+                });
+
+                this.proxyProcess.on('error', (err) => {
+                    console.error('Proxy spawn error:', err.message);
+                    this.proxyProcess = null;
+                    resolve(false);
+                });
+
+                this.proxyProcess.on('exit', (code) => {
+                    console.log('Proxy exited with code:', code);
+                    this.proxyProcess = null;
+                });
+
+                // Give proxy time to start
+                setTimeout(() => {
+                    if (this.proxyProcess && !this.proxyProcess.killed) {
+                        console.log('Proxy started successfully');
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                }, 500);
+            } catch (err) {
+                console.error('Failed to start proxy:', err.message);
+                this.proxyProcess = null;
+                resolve(false);
+            }
+        });
+    }
+
+    stopProxy() {
+        if (!this.proxyProcess) {
+            return;
+        }
+
+        console.log('Stopping proxy...');
+        try {
+            this.proxyProcess.kill();
+        } catch (err) {
+            console.error('Error stopping proxy:', err.message);
+        }
+        this.proxyProcess = null;
+        this.useProxy = false;
+    }
+
     async connect() {
         // Save current DNS settings before connecting
         await this.saveDNSSettings();
 
         const config = await this.apiClient.connectVPN();
         this.vpnConfig = config;
-        const wgConfig = this.generateWireGuardConfig(config);
+
+        // Determine endpoint - use proxy if obfsKey provided
+        let endpoint = config.endpoint;
+        this.useProxy = false;
+
+        if (config.obfsKey) {
+            const parts = config.endpoint.split(':');
+            const remoteHost = parts[0];
+            const remotePort = parts[1] || '443';
+
+            const proxyStarted = await this.startProxy(remoteHost, remotePort, config.obfsKey);
+            if (proxyStarted) {
+                endpoint = '127.0.0.1:' + this.proxyLocalPort;
+                this.useProxy = true;
+                console.log('Using obfuscated connection via proxy');
+            } else {
+                console.log('Proxy failed, using direct connection');
+            }
+        }
+
+        const wgConfig = this.generateWireGuardConfig(config, endpoint);
         const configFile = path.join(this.configPath, 'sc0.conf');
         await fs.writeFile(configFile, wgConfig, { mode: 0o600 });
 
@@ -198,7 +313,8 @@ class VPNManager {
             this.connected = true;
             return { success: true, message: 'Connected successfully' };
         } catch (error) {
-            // Restore DNS if connection failed
+            // Cleanup on failure
+            this.stopProxy();
             await this.restoreDNSSettings();
             throw new Error('Connection failed: ' + error.message);
         }
@@ -234,6 +350,9 @@ class VPNManager {
                 }
             }
 
+            // Stop proxy if running
+            this.stopProxy();
+
             await this.apiClient.disconnectVPN();
             await this.restoreDNSSettings();
 
@@ -241,6 +360,7 @@ class VPNManager {
             return { success: true, message: 'Disconnected successfully' };
         } catch (error) {
             console.error('Disconnect error:', error);
+            this.stopProxy();
             await this.restoreDNSSettings();
 
             // Force cleanup as last resort
@@ -272,8 +392,9 @@ class VPNManager {
         }
     }
 
-    generateWireGuardConfig(config) {
-        return '[Interface]\nPrivateKey = ' + config.privateKey + '\nAddress = ' + config.address + '\nDNS = ' + config.dns + '\n\n[Peer]\nPublicKey = ' + config.publicKey + '\nEndpoint = ' + config.endpoint + '\nAllowedIPs = ' + config.allowedIPs + '\nPersistentKeepalive = 25\n';
+    generateWireGuardConfig(config, endpoint) {
+        const ep = endpoint || config.endpoint;
+        return '[Interface]\nPrivateKey = ' + config.privateKey + '\nAddress = ' + config.address + '\nDNS = ' + config.dns + '\n\n[Peer]\nPublicKey = ' + config.publicKey + '\nEndpoint = ' + ep + '\nAllowedIPs = ' + config.allowedIPs + '\nPersistentKeepalive = 25\n';
     }
 
     async ensureConfigDir() {
