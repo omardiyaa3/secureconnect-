@@ -28,6 +28,20 @@ SAVE_CONFIG=0
 CONFIG_FILE=""
 PROGRAM="${0##*/}"
 ARGS=( "$@" )
+# Default run directories (may be overridden for AmneziaWG)
+RUN_DIR="/var/run/wireguard"
+SOCK_DIR="/var/run/wireguard"
+
+# Detect correct run directory for an interface
+detect_run_dir() {
+	if [[ -f "/var/run/amneziawg/$INTERFACE.name" ]]; then
+		RUN_DIR="/var/run/amneziawg"
+		SOCK_DIR="/var/run/amneziawg"
+	elif [[ -f "/var/run/wireguard/$INTERFACE.name" ]]; then
+		RUN_DIR="/var/run/wireguard"
+		SOCK_DIR="/var/run/wireguard"
+	fi
+}
 
 cmd() {
 	echo "[#] $*" >&2
@@ -112,10 +126,10 @@ auto_su() {
 get_real_interface() {
 	local interface diff
 	secureconnect-ctl show interfaces >/dev/null
-	[[ -f "/var/run/wireguard/$INTERFACE.name" ]] || return 1
-	interface="$(< "/var/run/wireguard/$INTERFACE.name")"
-	[[ -n $interface && -S "/var/run/wireguard/$interface.sock" ]] || return 1
-	diff=$(( $(stat -f %m "/var/run/wireguard/$interface.sock" 2>/dev/null || echo 200) - $(stat -f %m "/var/run/wireguard/$INTERFACE.name" 2>/dev/null || echo 100) ))
+	[[ -f "$RUN_DIR/$INTERFACE.name" ]] || return 1
+	interface="$(< "$RUN_DIR/$INTERFACE.name")"
+	[[ -n $interface && -S "$SOCK_DIR/$interface.sock" ]] || return 1
+	diff=$(( $(stat -f %m "$SOCK_DIR/$interface.sock" 2>/dev/null || echo 200) - $(stat -f %m "$RUN_DIR/$INTERFACE.name" 2>/dev/null || echo 100) ))
 	[[ $diff -ge 2 || $diff -le -2 ]] && return 1
 	REAL_INTERFACE="$interface"
 	echo "[+] Interface for $INTERFACE is $REAL_INTERFACE" >&2
@@ -123,8 +137,16 @@ get_real_interface() {
 }
 
 add_if() {
-	export WG_TUN_NAME_FILE="/var/run/wireguard/$INTERFACE.name"
-	mkdir -p "/var/run/wireguard/"
+	# Detect if using AmneziaWG (sockets go to /var/run/amneziawg/)
+	if [[ "$WG_QUICK_USERSPACE_IMPLEMENTATION" == *amneziawg* ]]; then
+		RUN_DIR="/var/run/amneziawg"
+		SOCK_DIR="/var/run/amneziawg"
+	else
+		RUN_DIR="/var/run/wireguard"
+		SOCK_DIR="/var/run/wireguard"
+	fi
+	export WG_TUN_NAME_FILE="$RUN_DIR/$INTERFACE.name"
+	mkdir -p "$RUN_DIR"
 	# Use bundled secureconnect-go (rebranded wireguard-go)
 	SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 	cmd "${WG_QUICK_USERSPACE_IMPLEMENTATION:-$SCRIPT_DIR/secureconnect-go}" utun
@@ -157,8 +179,8 @@ del_routes() {
 }
 
 del_if() {
-	[[ -z $REAL_INTERFACE ]] || cmd rm -f "/var/run/wireguard/$REAL_INTERFACE.sock"
-	cmd rm -f "/var/run/wireguard/$INTERFACE.name"
+	[[ -z $REAL_INTERFACE ]] || cmd rm -f "$SOCK_DIR/$REAL_INTERFACE.sock"
+	cmd rm -f "$RUN_DIR/$INTERFACE.name"
 }
 
 up_if() {
@@ -475,6 +497,7 @@ cmd_up() {
 }
 
 cmd_down() {
+	detect_run_dir
 	if ! get_real_interface || [[ " $(secureconnect-ctl show interfaces) " != *" $REAL_INTERFACE "* ]]; then
 		die "\`$INTERFACE' is not a WireGuard interface"
 	fi
