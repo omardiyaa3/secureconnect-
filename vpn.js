@@ -201,9 +201,9 @@ class VPNManager {
                     await execAsync(`"${this.wireguardExe}" /installtunnelservice "${configFile}"`);
                 }
             } else {
-                // macOS/Linux: Use awg-quick or wg-quick
-                const quickPath = useAwg ? this.awgQuickPath : this.wgQuickPath;
-                const toolName = useAwg ? 'awg-quick' : 'wg-quick';
+                // macOS/Linux: Always use wg-quick (secureconnect-vpn), but with AmneziaWG binary if available
+                // awg-quick requires bash 4+ which macOS doesn't have by default
+                const quickPath = this.wgQuickPath;
 
                 // Clean up any existing interface before connecting
                 try {
@@ -213,7 +213,7 @@ class VPNManager {
                     // Ignore errors - interface might not exist
                 }
 
-                // Set environment variable to point to AmneziaWG binary
+                // Set environment variable to point to AmneziaWG binary for DPI bypass
                 let envPrefix = '';
                 if (useAwg && this.awgBinary) {
                     const awgDir = path.dirname(this.awgBinary);
@@ -223,7 +223,7 @@ class VPNManager {
 
                 // Use direct sudo call (passwordless via sudoers configuration)
                 await execAsync(`sudo ${envPrefix}"${quickPath}" up "${configFile}"`);
-                console.log(`${toolName} up completed`);
+                console.log(`wg-quick up completed (AWG: ${useAwg})`);
             }
 
             this.connected = true;
@@ -255,13 +255,12 @@ class VPNManager {
                     console.log('WireGuard tunnel service uninstalled');
                 }
             } else {
-                // macOS/Linux: Use awg-quick or wg-quick
-                const quickPath = useAwg ? this.awgQuickPath : this.wgQuickPath;
-                const toolName = useAwg ? 'awg-quick' : 'wg-quick';
+                // macOS/Linux: Always use wg-quick (secureconnect-vpn)
+                const quickPath = this.wgQuickPath;
 
                 const { stdout, stderr } = await execAsync(`sudo "${quickPath}" down "${configFile}"`);
-                console.log(`${toolName} down output:`, stdout);
-                if (stderr) console.log(`${toolName} down stderr:`, stderr);
+                console.log('wg-quick down output:', stdout);
+                if (stderr) console.log('wg-quick down stderr:', stderr);
 
                 // Verify interface is actually down
                 if (this.platform === 'darwin') {
