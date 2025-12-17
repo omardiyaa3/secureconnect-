@@ -23,32 +23,40 @@ class VPNManager {
 
         const binPath = path.join(resourcesPath, 'bin', this.platform);
 
-        // Cross-platform WireGuard path detection
+        // Cross-platform AmneziaWG path detection (for DPI bypass)
         if (this.platform === 'darwin') {
-            // macOS: Use bundled rebranded binaries
+            // macOS: Use bundled AmneziaWG binaries
+            const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
+            this.awgBinary = path.join(binPath, `amneziawg-${arch}`);
+            this.awgQuickPath = path.join(binPath, 'awg-quick');
+
+            // Legacy WireGuard paths for fallback
             this.wgQuickPath = path.join(binPath, 'secureconnect-vpn');
             this.wgPath = path.join(binPath, 'secureconnect-ctl');
 
             // Fallback to system paths if bundled binaries not found
-            if (!require('fs').existsSync(this.wgQuickPath)) {
-                console.warn('Bundled binaries not found, falling back to system paths');
-                this.wgQuickPath = '/opt/homebrew/bin/wg-quick';
-                this.wgPath = '/opt/homebrew/bin/wg';
+            if (!require('fs').existsSync(this.awgBinary)) {
+                console.warn('AmneziaWG binaries not found, falling back to WireGuard');
+                this.awgBinary = null;
+                this.awgQuickPath = null;
             }
         } else if (this.platform === 'win32') {
-            // Windows: Use bundled rebranded binaries
+            // Windows: Use bundled AmneziaWG binary
+            this.awgBinary = path.join(binPath, 'amneziawg.exe');
+
+            // Legacy WireGuard paths
             this.wgPath = path.join(binPath, 'secureconnect-ctl.exe');
             this.wireguardExe = path.join(binPath, 'secureconnect-vpn.exe');
 
             // Fallback to system WireGuard if bundled not found
-            if (!require('fs').existsSync(this.wgPath)) {
-                console.warn('Bundled binaries not found, falling back to system WireGuard');
-                this.wgPath = 'C:\\Program Files\\WireGuard\\wg.exe';
-                this.wireguardExe = 'C:\\Program Files\\WireGuard\\wireguard.exe';
+            if (!require('fs').existsSync(this.awgBinary)) {
+                console.warn('AmneziaWG binary not found, falling back to WireGuard');
+                this.awgBinary = null;
             }
         } else {
-            // Linux: Standard system path (will be rebranded later)
+            // Linux: Standard system path
             this.wgQuickPath = '/usr/bin/wg-quick';
+            this.awgBinary = null;
         }
 
         this.originalDNS = null;
@@ -170,29 +178,52 @@ class VPNManager {
         await fs.writeFile(configFile, wgConfig, { mode: 0o600 });
 
         try {
-            if (this.platform === 'win32') {
-                // Windows: Use wireguard.exe to install tunnel service
-                // First try to uninstall any existing tunnel
-                try {
-                    await execAsync(`"${this.wireguardExe}" /uninstalltunnelservice sc0`);
-                } catch (e) {
-                    // Ignore - tunnel might not exist
-                }
+            // Determine if we should use AmneziaWG (for DPI bypass)
+            const useAwg = this.awgBinary && config.awg;
 
-                // Install and start the tunnel service
-                await execAsync(`"${this.wireguardExe}" /installtunnelservice "${configFile}"`);
+            if (this.platform === 'win32') {
+                if (useAwg) {
+                    // Windows: Use amneziawg.exe to install tunnel service
+                    try {
+                        await execAsync(`"${this.awgBinary}" /uninstalltunnelservice sc0`);
+                    } catch (e) {
+                        // Ignore - tunnel might not exist
+                    }
+                    await execAsync(`"${this.awgBinary}" /installtunnelservice "${configFile}"`);
+                    console.log('AmneziaWG tunnel service installed');
+                } else {
+                    // Fallback to WireGuard
+                    try {
+                        await execAsync(`"${this.wireguardExe}" /uninstalltunnelservice sc0`);
+                    } catch (e) {
+                        // Ignore - tunnel might not exist
+                    }
+                    await execAsync(`"${this.wireguardExe}" /installtunnelservice "${configFile}"`);
+                }
             } else {
-                // macOS/Linux: Use wg-quick
+                // macOS/Linux: Use awg-quick or wg-quick
+                const quickPath = useAwg ? this.awgQuickPath : this.wgQuickPath;
+                const toolName = useAwg ? 'awg-quick' : 'wg-quick';
+
                 // Clean up any existing interface before connecting
                 try {
                     console.log('Checking for existing VPN interface...');
-                    await execAsync(`sudo "${this.wgQuickPath}" down "${configFile}" 2>/dev/null || true`);
+                    await execAsync(`sudo "${quickPath}" down "${configFile}" 2>/dev/null || true`);
                 } catch (e) {
                     // Ignore errors - interface might not exist
                 }
 
+                // Set environment variable to point to AmneziaWG binary
+                let envPrefix = '';
+                if (useAwg && this.awgBinary) {
+                    const awgDir = path.dirname(this.awgBinary);
+                    envPrefix = `WG_QUICK_USERSPACE_IMPLEMENTATION="${this.awgBinary}" PATH="${awgDir}:$PATH" `;
+                    console.log('Using AmneziaWG for DPI bypass');
+                }
+
                 // Use direct sudo call (passwordless via sudoers configuration)
-                await execAsync(`sudo "${this.wgQuickPath}" up "${configFile}"`);
+                await execAsync(`sudo ${envPrefix}"${quickPath}" up "${configFile}"`);
+                console.log(`${toolName} up completed`);
             }
 
             this.connected = true;
@@ -211,22 +242,32 @@ class VPNManager {
 
         try {
             console.log('Disconnecting VPN...');
+            // Check if AWG is being used
+            const useAwg = this.awgBinary && this.vpnConfig && this.vpnConfig.awg;
 
             if (this.platform === 'win32') {
                 // Windows: Uninstall the tunnel service
-                await execAsync(`"${this.wireguardExe}" /uninstalltunnelservice sc0`);
-                console.log('Windows tunnel service uninstalled');
+                if (useAwg) {
+                    await execAsync(`"${this.awgBinary}" /uninstalltunnelservice sc0`);
+                    console.log('AmneziaWG tunnel service uninstalled');
+                } else {
+                    await execAsync(`"${this.wireguardExe}" /uninstalltunnelservice sc0`);
+                    console.log('WireGuard tunnel service uninstalled');
+                }
             } else {
-                // macOS/Linux: Use wg-quick (unchanged)
-                const { stdout, stderr } = await execAsync(`sudo "${this.wgQuickPath}" down "${configFile}"`);
-                console.log('wg-quick down output:', stdout);
-                if (stderr) console.log('wg-quick down stderr:', stderr);
+                // macOS/Linux: Use awg-quick or wg-quick
+                const quickPath = useAwg ? this.awgQuickPath : this.wgQuickPath;
+                const toolName = useAwg ? 'awg-quick' : 'wg-quick';
+
+                const { stdout, stderr } = await execAsync(`sudo "${quickPath}" down "${configFile}"`);
+                console.log(`${toolName} down output:`, stdout);
+                if (stderr) console.log(`${toolName} down stderr:`, stderr);
 
                 // Verify interface is actually down
                 if (this.platform === 'darwin') {
                     try {
                         await execAsync('ifconfig utun9 2>&1');
-                        console.warn('Interface still exists after wg-quick down, removing manually');
+                        console.warn('Interface still exists after down, removing manually');
                         await execAsync('sudo ifconfig utun9 down 2>&1 || true');
                     } catch {
                         console.log('VPN interface removed successfully');
@@ -249,6 +290,12 @@ class VPNManager {
                     await execAsync('sudo ifconfig utun9 down 2>&1 || true');
                 } catch {}
             } else if (this.platform === 'win32') {
+                try {
+                    // Try both AmneziaWG and WireGuard for cleanup
+                    if (this.awgBinary) {
+                        await execAsync(`"${this.awgBinary}" /uninstalltunnelservice sc0`);
+                    }
+                } catch {}
                 try {
                     await execAsync(`"${this.wireguardExe}" /uninstalltunnelservice sc0`);
                 } catch {}
@@ -273,6 +320,32 @@ class VPNManager {
     }
 
     generateWireGuardConfig(config) {
+        // Check if we have AmneziaWG obfuscation parameters
+        if (config.awg && this.awgBinary) {
+            // Generate AmneziaWG config with obfuscation parameters
+            let awgConfig = '[Interface]\n';
+            awgConfig += 'PrivateKey = ' + config.privateKey + '\n';
+            awgConfig += 'Address = ' + config.address + '\n';
+            awgConfig += 'DNS = ' + config.dns + '\n';
+            // AmneziaWG obfuscation parameters (client-side)
+            awgConfig += 'Jc = ' + config.awg.Jc + '\n';
+            awgConfig += 'Jmin = ' + config.awg.Jmin + '\n';
+            awgConfig += 'Jmax = ' + config.awg.Jmax + '\n';
+            awgConfig += 'S1 = ' + config.awg.S1 + '\n';
+            awgConfig += 'S2 = ' + config.awg.S2 + '\n';
+            awgConfig += 'H1 = ' + config.awg.H1 + '\n';
+            awgConfig += 'H2 = ' + config.awg.H2 + '\n';
+            awgConfig += 'H3 = ' + config.awg.H3 + '\n';
+            awgConfig += 'H4 = ' + config.awg.H4 + '\n';
+            awgConfig += '\n[Peer]\n';
+            awgConfig += 'PublicKey = ' + config.publicKey + '\n';
+            awgConfig += 'Endpoint = ' + config.endpoint + '\n';
+            awgConfig += 'AllowedIPs = ' + config.allowedIPs + '\n';
+            awgConfig += 'PersistentKeepalive = 25\n';
+            return awgConfig;
+        }
+
+        // Standard WireGuard config (fallback)
         return '[Interface]\nPrivateKey = ' + config.privateKey + '\nAddress = ' + config.address + '\nDNS = ' + config.dns + '\n\n[Peer]\nPublicKey = ' + config.publicKey + '\nEndpoint = ' + config.endpoint + '\nAllowedIPs = ' + config.allowedIPs + '\nPersistentKeepalive = 25\n';
     }
 
