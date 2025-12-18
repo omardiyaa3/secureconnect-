@@ -24,6 +24,15 @@ jobs:
         with:
           go-version: '1.24'
 
+      - name: Bundle bash 5 for macOS
+        run: |
+          # macOS ships with bash 3.2, but we need bash 4+ for associative arrays
+          brew install bash
+          cp $(brew --prefix)/bin/bash resources/bin/darwin/secureconnect-bash
+          chmod +x resources/bin/darwin/secureconnect-bash
+          echo "Bundled bash version:"
+          resources/bin/darwin/secureconnect-bash --version
+
       - name: Build native binaries
         run: |
           # Remove old binaries first
