@@ -279,11 +279,25 @@ function Set-Network {
         netsh interface ip set dns "$adapterName" static $Config.DNS 2>&1
     }
 
-    # Add routes
+    # Add routes for all AllowedIPs (standard wg-quick behavior)
     foreach ($allowedIP in $Config.AllowedIPs) {
         if ($allowedIP -eq "0.0.0.0/0") {
             Log "Adding default route..."
             route add 0.0.0.0 mask 0.0.0.0 $ipAddress metric 5 2>&1
+        } else {
+            # Parse CIDR notation (e.g., 172.20.2.0/24)
+            $parts = $allowedIP -split '/'
+            $network = $parts[0]
+            $cidr = if ($parts.Length -gt 1) { [int]$parts[1] } else { 32 }
+
+            # Convert CIDR to subnet mask
+            $maskInt = [uint32]([math]::Pow(2, 32) - [math]::Pow(2, 32 - $cidr))
+            $maskBytes = [BitConverter]::GetBytes($maskInt)
+            [Array]::Reverse($maskBytes)
+            $subnetMask = ($maskBytes | ForEach-Object { $_.ToString() }) -join '.'
+
+            Log "Adding route: $network/$cidr -> $adapterName"
+            route add $network mask $subnetMask 0.0.0.0 IF $adapter.ifIndex metric 5 2>&1
         }
     }
 
