@@ -26,6 +26,12 @@ jobs:
 
       - name: Build native binaries
         run: |
+          # Remove old binaries first
+          rm -f resources/bin/darwin/secureconnect-go-arm64
+          rm -f resources/bin/darwin/secureconnect-go-amd64
+          rm -f resources/bin/darwin/secureconnect-ctl-arm64
+          rm -f resources/bin/darwin/secureconnect-ctl-amd64
+
           # Build secureconnect-go (VPN daemon)
           git clone https://github.com/amnezia-vpn/amneziawg-go.git
           cd amneziawg-go
@@ -33,14 +39,25 @@ jobs:
           GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o ../resources/bin/darwin/secureconnect-go-amd64 .
           cd ..
 
-          # Build secureconnect-ctl (config tool)
+          # Build secureconnect-ctl (config tool) from amneziawg-tools
           git clone https://github.com/amnezia-vpn/amneziawg-tools.git
           cd amneziawg-tools/src
-          make clean && make CC="clang -target arm64-apple-macos11" LDFLAGS="-s"
+          # ARM64 build
+          make clean
+          make CC="clang" CFLAGS="-target arm64-apple-macos11 -O3" LDFLAGS="-target arm64-apple-macos11"
           cp wg ../../resources/bin/darwin/secureconnect-ctl-arm64
-          make clean && make CC="clang -target x86_64-apple-macos11" LDFLAGS="-s"
+          # AMD64 build
+          make clean
+          make CC="clang" CFLAGS="-target x86_64-apple-macos11 -O3" LDFLAGS="-target x86_64-apple-macos11"
           cp wg ../../resources/bin/darwin/secureconnect-ctl-amd64
           cd ../..
+
+          # Verify builds
+          echo "=== Verifying macOS binaries ==="
+          file resources/bin/darwin/secureconnect-ctl-arm64
+          file resources/bin/darwin/secureconnect-ctl-amd64
+          file resources/bin/darwin/secureconnect-go-arm64
+          file resources/bin/darwin/secureconnect-go-amd64
 
           chmod +x resources/bin/darwin/*
 
