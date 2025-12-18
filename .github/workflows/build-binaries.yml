@@ -131,9 +131,12 @@ jobs:
           $tunFile = "tun/tun_windows.go"
           if (Test-Path $tunFile) {
             $content = Get-Content $tunFile -Raw
-            $content = $content -replace 'WintunTunnelType\s*=\s*"WireGuard"', 'WintunTunnelType = "SecureConnect"'
-            Set-Content $tunFile $content
-            Write-Host "Patched adapter description to SecureConnect"
+            Write-Host "Before patch:"
+            Select-String -Path $tunFile -Pattern "WintunTunnelType"
+            $content = $content -replace 'WintunTunnelType\s*=\s*"WireGuard"', 'WintunTunnelType          = "SecureConnect"'
+            Set-Content $tunFile $content -NoNewline
+            Write-Host "After patch:"
+            Select-String -Path $tunFile -Pattern "WintunTunnelType"
           }
 
           $env:GOOS="windows"; $env:GOARCH="amd64"; $env:CGO_ENABLED="0"

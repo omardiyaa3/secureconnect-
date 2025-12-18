@@ -225,30 +225,43 @@ function Set-Network {
     $ipAddress = $addressParts[0]
     Log "VPN IP: $ipAddress"
 
-    # Wait for adapter
+    # Wait for adapter (might have suffix like "SecureConnect 1")
     Log "Waiting for network adapter..."
     $timeout = 10
     $waited = 0
-    while (-not (Get-NetAdapter -Name $InterfaceName -ErrorAction SilentlyContinue) -and $waited -lt $timeout) {
+    $adapter = $null
+    while ($waited -lt $timeout) {
+        # Try exact name first
+        $adapter = Get-NetAdapter -Name $InterfaceName -ErrorAction SilentlyContinue
+        if (-not $adapter) {
+            # Try with wildcard (SecureConnect, SecureConnect 1, etc.)
+            $adapter = Get-NetAdapter | Where-Object { $_.Name -like "$InterfaceName*" } | Select-Object -First 1
+        }
+        if ($adapter) { break }
         Start-Sleep -Milliseconds 500
         $waited += 0.5
     }
 
-    $adapter = Get-NetAdapter -Name $InterfaceName -ErrorAction SilentlyContinue
     if (-not $adapter) {
+        # List all adapters for debugging
+        $allAdapters = Get-NetAdapter | Select-Object Name, InterfaceDescription, Status
+        Log "Available adapters: $($allAdapters | Out-String)"
         throw "Adapter '$InterfaceName' not found after ${timeout}s"
     }
     Log "Adapter found: $($adapter.Name) - Status: $($adapter.Status)"
 
-    # Set IP
-    Log "Setting IP address..."
-    $netshResult = netsh interface ip set address "$InterfaceName" static $ipAddress 255.255.255.0 2>&1
+    # Use the actual adapter name for subsequent commands
+    $adapterName = $adapter.Name
+
+    # Set IP using actual adapter name
+    Log "Setting IP address on '$adapterName'..."
+    $netshResult = netsh interface ip set address "$adapterName" static $ipAddress 255.255.255.0 2>&1
     Log "netsh result: $netshResult"
 
     # Set DNS
     if ($Config.DNS) {
         Log "Setting DNS: $($Config.DNS)"
-        netsh interface ip set dns "$InterfaceName" static $Config.DNS 2>&1
+        netsh interface ip set dns "$adapterName" static $Config.DNS 2>&1
     }
 
     # Add routes
