@@ -100,6 +100,16 @@ jobs:
         with:
           go-version: '1.24'
 
+      - name: Download WinTun driver
+        run: |
+          # Download WinTun (required for userspace WireGuard/AmneziaWG on Windows)
+          Invoke-WebRequest -Uri "https://www.wintun.net/builds/wintun-0.14.1.zip" -OutFile wintun.zip
+          Expand-Archive -Path wintun.zip -DestinationPath wintun
+          # Copy the AMD64 DLL to our bin folder
+          Copy-Item "wintun\wintun\bin\amd64\wintun.dll" "resources\bin\win32\wintun.dll"
+          Write-Host "WinTun DLL installed:"
+          Get-Item "resources\bin\win32\wintun.dll"
+
       - name: Build native binaries
         run: |
           git clone https://github.com/amnezia-vpn/amneziawg-go.git
