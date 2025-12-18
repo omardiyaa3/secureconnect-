@@ -102,8 +102,12 @@ function Start-Daemon {
         throw "wintun.dll not found in $ScriptDir"
     }
 
+    # Create temp files for capturing output
+    $stdoutFile = [System.IO.Path]::GetTempFileName()
+    $stderrFile = [System.IO.Path]::GetTempFileName()
+
     # Start the daemon with working directory set to find wintun.dll
-    $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WindowStyle Hidden -WorkingDirectory $ScriptDir
+    $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WorkingDirectory $ScriptDir -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden
 
     # Wait for pipe to be available
     $timeout = 10
@@ -111,7 +115,10 @@ function Start-Daemon {
     while (-not (Test-Path $PipeName) -and $waited -lt $timeout) {
         # Check if process crashed
         if ($process.HasExited) {
-            throw "Daemon crashed with exit code: $($process.ExitCode)"
+            $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
+            $stderr = Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue
+            Remove-Item $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+            throw "Daemon crashed (exit code $($process.ExitCode)): $stderr $stdout"
         }
         Start-Sleep -Milliseconds 500
         $waited += 0.5
@@ -119,10 +126,16 @@ function Start-Daemon {
 
     if (-not (Test-Path $PipeName)) {
         if ($process.HasExited) {
-            throw "Daemon crashed with exit code: $($process.ExitCode)"
+            $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
+            $stderr = Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue
+            Remove-Item $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+            throw "Daemon crashed (exit code $($process.ExitCode)): $stderr $stdout"
         }
+        Remove-Item $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
         throw "Daemon failed to start - pipe not available at $PipeName"
     }
+
+    Remove-Item $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
 
     Write-Host "[+] Daemon started (PID: $($process.Id))"
     return $process
