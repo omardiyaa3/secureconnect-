@@ -14,8 +14,8 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DaemonExe = Join-Path $ScriptDir "secureconnect-go.exe"
 $InterfaceName = "SecureConnect"
-# Pipe path is hardcoded in amneziawg-go source - can't change without modifying Go code
-$PipeName = "\\.\pipe\WireGuard\$InterfaceName"
+# Pipe path - patched amneziawg-go to use simple path without ProtectedPrefix
+$PipeName = "\\.\pipe\AmneziaWG\$InterfaceName"
 
 # Parse config file
 function Parse-Config {
@@ -173,7 +173,7 @@ function Set-Config {
     $uapi += "`n"
 
     # Send to daemon via named pipe
-    $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "WireGuard\$InterfaceName", [System.IO.Pipes.PipeDirection]::InOut)
+    $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "AmneziaWG\$InterfaceName", [System.IO.Pipes.PipeDirection]::InOut)
     $pipe.Connect(5000)
 
     $writer = New-Object System.IO.StreamWriter($pipe)

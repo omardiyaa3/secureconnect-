@@ -114,6 +114,18 @@ jobs:
         run: |
           git clone https://github.com/amnezia-vpn/amneziawg-go.git
           cd amneziawg-go
+
+          # Patch UAPI to use simple pipe path (ProtectedPrefix requires SYSTEM privileges)
+          $uapiFile = "ipc/uapi_windows.go"
+          if (Test-Path $uapiFile) {
+            $content = Get-Content $uapiFile -Raw
+            # Replace ProtectedPrefix path with simple path
+            $content = $content -replace 'ProtectedPrefix\\\\Administrators\\\\WireGuard\\\\', 'WireGuard\\'
+            $content = $content -replace 'ProtectedPrefix\\\\Administrators\\\\AmneziaWG\\\\', 'AmneziaWG\\'
+            Set-Content $uapiFile $content
+            Write-Host "Patched UAPI socket path"
+          }
+
           $env:GOOS="windows"; $env:GOARCH="amd64"; $env:CGO_ENABLED="0"
           go build -o ../resources/bin/win32/secureconnect-go.exe .
           cd ..
