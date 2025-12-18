@@ -212,46 +212,23 @@ class VPNManager {
             console.log('Starting SecureConnect with DPI bypass...');
 
             const binDir = path.dirname(this.scQuickScript);
+            const cmd = `powershell -ExecutionPolicy Bypass -File "${this.scQuickScript}" up "${configFile}"`;
 
-            // Start the script in background (don't wait for it to finish)
-            const { spawn } = require('child_process');
-            const scriptProcess = spawn('powershell', [
-                '-ExecutionPolicy', 'Bypass',
-                '-File', this.scQuickScript,
-                'up', configFile
-            ], { cwd: binDir, detached: true, stdio: 'ignore' });
-            scriptProcess.unref();
-
-            // Poll for VPN to be ready (check daemon + interface)
-            const maxWait = 30000;
-            const pollInterval = 1000;
-            let waited = 0;
-
-            while (waited < maxWait) {
-                await new Promise(r => setTimeout(r, pollInterval));
-                waited += pollInterval;
-
-                try {
-                    // Check 1: Is daemon running?
-                    const { stdout: taskList } = await execAsync('tasklist /FI "IMAGENAME eq secureconnect-go.exe"', { timeout: 5000 });
-                    const daemonRunning = taskList.includes('secureconnect-go.exe');
-
-                    if (!daemonRunning) continue; // Keep waiting
-
-                    // Check 2: Is interface connected?
-                    const { stdout: ifStatus } = await execAsync('netsh interface show interface name="SecureConnect"', { timeout: 5000 });
-                    const interfaceConnected = ifStatus.includes('Connected');
-
-                    if (daemonRunning && interfaceConnected) {
-                        console.log('SecureConnect tunnel active with DPI bypass');
-                        return; // Success!
-                    }
-                } catch (e) {
-                    // Not ready yet, keep waiting
+            try {
+                // Run script with timeout
+                await execAsync(cmd, { cwd: binDir, timeout: 20000 });
+                console.log('SecureConnect tunnel active with DPI bypass');
+            } catch (error) {
+                // Script may timeout or have output issues, but VPN might still work
+                // Check if VPN is actually connected
+                const isConnected = await this.checkWindowsVPNConnected();
+                if (isConnected) {
+                    console.log('SecureConnect tunnel active with DPI bypass');
+                    return; // Success - VPN is working
                 }
+                // VPN not connected, throw the error
+                throw new Error('Connection failed: ' + (error.stderr || error.message));
             }
-
-            throw new Error('VPN failed to connect within 30 seconds');
         } else {
             // Standard WireGuard: Use tunnel service approach
             try {
@@ -377,6 +354,23 @@ class VPNManager {
             try {
                 await execAsync('sudo ip link delete sc0 2>/dev/null || true');
             } catch {}
+        }
+    }
+
+    async checkWindowsVPNConnected() {
+        try {
+            // Check 1: Is daemon running?
+            const { stdout: taskList } = await execAsync('tasklist /FI "IMAGENAME eq secureconnect-go.exe"', { timeout: 5000 });
+            const daemonRunning = taskList.includes('secureconnect-go.exe');
+            if (!daemonRunning) return false;
+
+            // Check 2: Is interface connected?
+            const { stdout: ifStatus } = await execAsync('netsh interface show interface name="SecureConnect"', { timeout: 5000 });
+            const interfaceConnected = ifStatus.includes('Connected');
+
+            return daemonRunning && interfaceConnected;
+        } catch (e) {
+            return false;
         }
     }
 
