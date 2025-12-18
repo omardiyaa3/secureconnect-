@@ -112,9 +112,11 @@ function Start-Daemon {
     if (-not (Test-Path $wintunDll)) { throw "wintun.dll not found: $wintunDll" }
     Log "Files verified"
 
-    # Start daemon
+    # Start daemon with output capture
     Log "Launching daemon process..."
-    $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WorkingDirectory $ScriptDir -WindowStyle Hidden
+    $stdoutFile = Join-Path $env:TEMP "sc-daemon-stdout.log"
+    $stderrFile = Join-Path $env:TEMP "sc-daemon-stderr.log"
+    $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WorkingDirectory $ScriptDir -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden
     Log "Daemon launched with PID: $($process.Id)"
 
     # Wait for pipe
@@ -123,14 +125,26 @@ function Start-Daemon {
     $waited = 0
     while (-not (Test-Path $PipeName) -and $waited -lt $timeout) {
         if ($process.HasExited) {
-            throw "Daemon exited with code: $($process.ExitCode)"
+            $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
+            $stderr = Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue
+            Log "Daemon stdout: $stdout"
+            Log "Daemon stderr: $stderr"
+            throw "Daemon exited with code $($process.ExitCode): $stderr"
         }
         Start-Sleep -Milliseconds 500
         $waited += 0.5
     }
 
     if (-not (Test-Path $PipeName)) {
-        throw "Pipe not available after ${timeout}s"
+        # Check daemon output even if still running
+        $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
+        $stderr = Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue
+        Log "Daemon stdout: $stdout"
+        Log "Daemon stderr: $stderr"
+        if ($process.HasExited) {
+            throw "Daemon crashed (code $($process.ExitCode)): $stderr"
+        }
+        throw "Pipe not available after ${timeout}s. Daemon output: $stderr"
     }
 
     Log "Pipe is available!"
