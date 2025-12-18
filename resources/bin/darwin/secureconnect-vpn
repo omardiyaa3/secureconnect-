@@ -137,8 +137,8 @@ get_real_interface() {
 }
 
 add_if() {
-	# Detect if using AmneziaWG (sockets go to /var/run/amneziawg/)
-	if [[ "$WG_QUICK_USERSPACE_IMPLEMENTATION" == *amneziawg* ]]; then
+	# Detect if using SecureConnect/AmneziaWG (sockets go to /var/run/amneziawg/)
+	if [[ "$WG_QUICK_USERSPACE_IMPLEMENTATION" == *amneziawg* ]] || [[ "$WG_QUICK_USERSPACE_IMPLEMENTATION" == *secureconnect-go* ]]; then
 		RUN_DIR="/var/run/amneziawg"
 		SOCK_DIR="/var/run/amneziawg"
 	else
