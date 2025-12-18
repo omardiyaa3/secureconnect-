@@ -14,6 +14,7 @@ $DaemonExe = Join-Path $ScriptDir "secureconnect-go.exe"
 $InterfaceName = "SecureConnect"
 $PipeName = "\\.\pipe\AmneziaWG\$InterfaceName"
 $LogFile = Join-Path $env:TEMP "secureconnect.log"
+$RoutesFile = Join-Path $env:TEMP "secureconnect-routes.txt"
 
 function Log {
     param([string]$Message)
@@ -151,27 +152,60 @@ function Set-Network {
         netsh interface ip set dns "$($adapter.Name)" static $dns 2>&1 | Out-Null
     }
 
+    # Clear routes file and track what we add
+    Remove-Item $RoutesFile -Force -ErrorAction SilentlyContinue
+    $addedRoutes = @()
+
     # Add routes for AllowedIPs
     foreach ($allowedIP in $Config.AllowedIPs) {
         $parts = $allowedIP -split '/'
         $network = $parts[0]
         $cidr = if ($parts.Length -gt 1) { [int]$parts[1] } else { 32 }
 
+        $maskInt = [uint32]([math]::Pow(2, 32) - [math]::Pow(2, 32 - $cidr))
+        $maskBytes = [BitConverter]::GetBytes($maskInt)
+        [Array]::Reverse($maskBytes)
+        $mask = ($maskBytes | ForEach-Object { $_.ToString() }) -join '.'
+
         if ($allowedIP -eq "0.0.0.0/0") {
+            # Full tunnel - route through VPN gateway
             route add 0.0.0.0 mask 0.0.0.0 $ipAddress metric 5 2>&1 | Out-Null
+            $addedRoutes += "0.0.0.0|0.0.0.0|$ipAddress"
         } else {
-            $maskInt = [uint32]([math]::Pow(2, 32) - [math]::Pow(2, 32 - $cidr))
-            $maskBytes = [BitConverter]::GetBytes($maskInt)
-            [Array]::Reverse($maskBytes)
-            $mask = ($maskBytes | ForEach-Object { $_.ToString() }) -join '.'
+            # Split tunnel - route through interface
             route add $network mask $mask 0.0.0.0 IF $adapter.ifIndex metric 5 2>&1 | Out-Null
+            $addedRoutes += "$network|$mask|IF$($adapter.ifIndex)"
         }
     }
+
+    # Save added routes to file for cleanup
+    $addedRoutes | Out-File -FilePath $RoutesFile -Encoding UTF8
 }
 
 function Stop-Daemon {
+    # Stop the daemon process
     Get-Process -Name "secureconnect-go" -ErrorAction SilentlyContinue | Stop-Process -Force
-    route delete 0.0.0.0 mask 0.0.0.0 2>$null
+
+    # Delete only the routes we added (read from routes file)
+    if (Test-Path $RoutesFile) {
+        Get-Content $RoutesFile | ForEach-Object {
+            $parts = $_ -split '\|'
+            if ($parts.Length -ge 3) {
+                $network = $parts[0]
+                $mask = $parts[1]
+                $gateway = $parts[2]
+
+                if ($gateway -match '^IF(\d+)$') {
+                    # Interface-based route
+                    route delete $network mask $mask 2>$null
+                } else {
+                    # Gateway-based route - delete with specific gateway
+                    route delete $network mask $mask $gateway 2>$null
+                }
+            }
+        }
+        Remove-Item $RoutesFile -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # Main
