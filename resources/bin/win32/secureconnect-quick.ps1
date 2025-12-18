@@ -70,9 +70,10 @@ function Start-Daemon {
     if (-not (Test-Path $DaemonExe)) { throw "Daemon not found" }
     if (-not (Test-Path (Join-Path $ScriptDir "wintun.dll"))) { throw "wintun.dll not found" }
 
-    # Start daemon
-    $stdoutFile = Join-Path $env:TEMP "sc-daemon.log"
-    $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WorkingDirectory $ScriptDir -RedirectStandardOutput $stdoutFile -RedirectStandardError $stdoutFile -WindowStyle Hidden
+    # Start daemon with separate stdout/stderr files
+    $stdoutFile = Join-Path $env:TEMP "sc-daemon-out.log"
+    $stderrFile = Join-Path $env:TEMP "sc-daemon-err.log"
+    $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WorkingDirectory $ScriptDir -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden
 
     # Wait for UAPI
     $timeout = 10; $waited = 0
