@@ -44,11 +44,11 @@ jobs:
           cd amneziawg-tools/src
           # ARM64 build
           make clean
-          make CC="clang" CFLAGS="-target arm64-apple-macos11 -O3" LDFLAGS="-target arm64-apple-macos11"
+          make CC="clang -target arm64-apple-macos11" RUNSTATEDIR="/var/run"
           cp wg ../../resources/bin/darwin/secureconnect-ctl-arm64
           # AMD64 build
           make clean
-          make CC="clang" CFLAGS="-target x86_64-apple-macos11 -O3" LDFLAGS="-target x86_64-apple-macos11"
+          make CC="clang -target x86_64-apple-macos11" RUNSTATEDIR="/var/run"
           cp wg ../../resources/bin/darwin/secureconnect-ctl-amd64
           cd ../..
 
@@ -138,7 +138,7 @@ jobs:
           # Build secureconnect-ctl
           git clone https://github.com/amnezia-vpn/amneziawg-tools.git
           cd amneziawg-tools/src
-          make clean && make LDFLAGS="-s"
+          make clean && make LDFLAGS="-s" RUNSTATEDIR="/var/run"
           cp wg ../../resources/bin/linux/secureconnect-ctl
           cd ../..
 
