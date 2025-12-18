@@ -1,6 +1,4 @@
 # SecureConnect VPN Quick Setup Script for Windows
-# This script manages the SecureConnect VPN tunnel (equivalent to wg-quick on Unix)
-
 param(
     [Parameter(Mandatory=$true, Position=0)]
     [ValidateSet("up", "down")]
@@ -15,57 +13,29 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DaemonExe = Join-Path $ScriptDir "secureconnect-go.exe"
 $InterfaceName = "SecureConnect"
 $PipeName = "\\.\pipe\AmneziaWG\$InterfaceName"
-
-# Log file for debugging
-$LogFile = Join-Path $env:TEMP "secureconnect-debug.log"
+$LogFile = Join-Path $env:TEMP "secureconnect.log"
 
 function Log {
     param([string]$Message)
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logLine = "[$timestamp] $Message"
-    Write-Host $logLine
-    Add-Content -Path $LogFile -Value $logLine -ErrorAction SilentlyContinue
+    $line = "[$(Get-Date -Format 'HH:mm:ss')] $Message"
+    Add-Content -Path $LogFile -Value $line -ErrorAction SilentlyContinue
 }
 
-Log "=========================================="
-Log "SecureConnect Script Started"
-Log "Action: $Action"
-Log "Config: $ConfigFile"
-Log "Script Dir: $ScriptDir"
-Log "Daemon: $DaemonExe"
-Log "Pipe: $PipeName"
-Log "=========================================="
-
-# Parse config file
 function Parse-Config {
     param([string]$Path)
-
-    Log "Parsing config file: $Path"
-
     $config = @{
-        PrivateKey = ""
-        Address = ""
-        DNS = ""
-        MTU = 1420
-        PublicKey = ""
-        Endpoint = ""
-        AllowedIPs = @()
-        PersistentKeepalive = 25
-        Jc = $null; Jmin = $null; Jmax = $null
-        S1 = $null; S2 = $null
+        PrivateKey = ""; Address = ""; DNS = ""; PublicKey = ""; Endpoint = ""
+        AllowedIPs = @(); PersistentKeepalive = 25
+        Jc = $null; Jmin = $null; Jmax = $null; S1 = $null; S2 = $null
         H1 = $null; H2 = $null; H3 = $null; H4 = $null
     }
-
     Get-Content $Path | ForEach-Object {
-        $line = $_.Trim()
-        if ($line -match '^(\w+)\s*=\s*(.+)$') {
-            $key = $Matches[1]
-            $value = $Matches[2].Trim()
+        if ($_ -match '^(\w+)\s*=\s*(.+)$') {
+            $key = $Matches[1]; $value = $Matches[2].Trim()
             switch ($key) {
                 "PrivateKey" { $config.PrivateKey = $value }
                 "Address" { $config.Address = $value }
                 "DNS" { $config.DNS = $value }
-                "MTU" { $config.MTU = [int]$value }
                 "PublicKey" { $config.PublicKey = $value }
                 "Endpoint" { $config.Endpoint = $value }
                 "AllowedIPs" { $config.AllowedIPs = $value -split ',' | ForEach-Object { $_.Trim() } }
@@ -82,87 +52,46 @@ function Parse-Config {
             }
         }
     }
-
-    Log "Config parsed - Endpoint: $($config.Endpoint), Address: $($config.Address)"
     return $config
 }
 
-# Convert base64 key to hex
 function Convert-KeyToHex {
     param([string]$Base64Key)
     $bytes = [Convert]::FromBase64String($Base64Key)
     return ($bytes | ForEach-Object { $_.ToString("x2") }) -join ''
 }
 
-# Start the daemon
 function Start-Daemon {
-    Log "Starting daemon..."
+    # Kill existing
+    Get-Process -Name "secureconnect-go" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Milliseconds 500
 
-    # Kill any existing daemon
-    $existing = Get-Process -Name "secureconnect-go" -ErrorAction SilentlyContinue
-    if ($existing) {
-        Log "Killing existing daemon..."
-        Stop-Process -Name "secureconnect-go" -Force
-        Start-Sleep -Seconds 1
-    }
+    # Verify files
+    if (-not (Test-Path $DaemonExe)) { throw "Daemon not found" }
+    if (-not (Test-Path (Join-Path $ScriptDir "wintun.dll"))) { throw "wintun.dll not found" }
 
-    # Verify files exist
-    if (-not (Test-Path $DaemonExe)) { throw "Daemon not found: $DaemonExe" }
-    $wintunDll = Join-Path $ScriptDir "wintun.dll"
-    if (-not (Test-Path $wintunDll)) { throw "wintun.dll not found: $wintunDll" }
-    Log "Files verified"
+    # Start daemon
+    $stdoutFile = Join-Path $env:TEMP "sc-daemon.log"
+    $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WorkingDirectory $ScriptDir -RedirectStandardOutput $stdoutFile -RedirectStandardError $stdoutFile -WindowStyle Hidden
 
-    # Start daemon with output capture
-    Log "Launching daemon process..."
-    $stdoutFile = Join-Path $env:TEMP "sc-daemon-stdout.log"
-    $stderrFile = Join-Path $env:TEMP "sc-daemon-stderr.log"
-    $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WorkingDirectory $ScriptDir -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden
-    Log "Daemon launched with PID: $($process.Id)"
-
-    # Wait for UAPI listener to start (Test-Path doesn't work for named pipes)
-    Log "Waiting for UAPI listener..."
-    $timeout = 10
-    $waited = 0
+    # Wait for UAPI
+    $timeout = 10; $waited = 0
     while ($waited -lt $timeout) {
-        if ($process.HasExited) {
-            $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
-            $stderr = Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue
-            Log "Daemon stdout: $stdout"
-            Log "Daemon stderr: $stderr"
-            throw "Daemon crashed (code $($process.ExitCode)): $stderr"
-        }
-
-        # Check daemon output for UAPI ready message
-        $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
-        if ($stdout -match "UAPI listener started") {
-            Log "UAPI listener is ready!"
-            Start-Sleep -Milliseconds 300
-            return $process
-        }
-
+        if ($process.HasExited) { throw "Daemon crashed" }
+        $out = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
+        if ($out -match "UAPI listener started") { return $process }
         Start-Sleep -Milliseconds 500
         $waited += 0.5
     }
-
-    # Timeout - show what happened
-    $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
-    $stderr = Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue
-    Log "Daemon stdout: $stdout"
-    Log "Daemon stderr: $stderr"
-    throw "UAPI listener not ready after ${timeout}s"
+    throw "Daemon timeout"
 }
 
-# Configure via UAPI with timeout
 function Set-Config {
     param($Config)
 
-    Log "Building UAPI config..."
-
-    # Build UAPI message
+    # Build UAPI
     $uapi = "set=1`n"
     $uapi += "private_key=$(Convert-KeyToHex $Config.PrivateKey)`n"
-
-    # AWG params
     if ($null -ne $Config.Jc) { $uapi += "jc=$($Config.Jc)`n" }
     if ($null -ne $Config.Jmin) { $uapi += "jmin=$($Config.Jmin)`n" }
     if ($null -ne $Config.Jmax) { $uapi += "jmax=$($Config.Jmax)`n" }
@@ -172,175 +101,93 @@ function Set-Config {
     if ($null -ne $Config.H2) { $uapi += "h2=$($Config.H2)`n" }
     if ($null -ne $Config.H3) { $uapi += "h3=$($Config.H3)`n" }
     if ($null -ne $Config.H4) { $uapi += "h4=$($Config.H4)`n" }
-
-    # Peer
     $uapi += "public_key=$(Convert-KeyToHex $Config.PublicKey)`n"
     $uapi += "endpoint=$($Config.Endpoint)`n"
     $uapi += "persistent_keepalive_interval=$($Config.PersistentKeepalive)`n"
-    foreach ($ip in $Config.AllowedIPs) {
-        $uapi += "allowed_ip=$ip`n"
-    }
+    foreach ($ip in $Config.AllowedIPs) { $uapi += "allowed_ip=$ip`n" }
     $uapi += "`n"
 
-    Log "UAPI config built (length: $($uapi.Length) chars)"
-    # Log config content (mask private key for security)
-    $maskedConfig = $uapi -replace '(private_key=)[a-f0-9]+', '$1<masked>'
-    Log "UAPI config content:`n$maskedConfig"
-
-    # Write to temp file
+    # Send to pipe
     $tempFile = Join-Path $env:TEMP "sc-uapi.txt"
     [System.IO.File]::WriteAllText($tempFile, $uapi)
-    Log "Config written to: $tempFile"
-
-    # Send to pipe with timeout using a background job
-    Log "Sending config to pipe (with 10s timeout)..."
 
     $job = Start-Job -ScriptBlock {
-        param($tempFile, $pipePath)
-        cmd /c "type `"$tempFile`" > `"$pipePath`"" 2>&1
+        param($f, $p)
+        cmd /c "type `"$f`" > `"$p`"" 2>&1
     } -ArgumentList $tempFile, $PipeName
 
-    $completed = Wait-Job $job -Timeout 10
-
-    if ($null -eq $completed) {
-        Log "ERROR: Pipe write timed out after 10 seconds!"
-        Stop-Job $job
-        Remove-Job $job -Force
-        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-        throw "UAPI pipe write timed out - daemon may not be accepting connections"
+    if (-not (Wait-Job $job -Timeout 10)) {
+        Stop-Job $job; Remove-Job $job -Force
+        throw "Config send timeout"
     }
-
-    $result = Receive-Job $job
     Remove-Job $job -Force
     Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-
-    Log "Config sent successfully"
-    Start-Sleep -Milliseconds 1000
-
-    # Verify config was applied by checking daemon output for peer info
-    $daemonStdout = Join-Path $env:TEMP "sc-daemon-stdout.log"
-    if (Test-Path $daemonStdout) {
-        $output = Get-Content $daemonStdout -Raw -ErrorAction SilentlyContinue
-        if ($output -match "Peer .* created") {
-            Log "Peer configuration confirmed!"
-        } else {
-            Log "WARNING: No peer confirmation in daemon output"
-            Log "Daemon output after config: $output"
-        }
-    }
+    Start-Sleep -Milliseconds 500
 }
 
-# Set up networking
 function Set-Network {
     param($Config)
 
-    Log "Configuring network..."
+    $ipAddress = ($Config.Address -split '/')[0]
 
-    $addressParts = $Config.Address -split '/'
-    $ipAddress = $addressParts[0]
-    Log "VPN IP: $ipAddress"
-
-    # Wait for adapter (might have suffix like "SecureConnect 1")
-    Log "Waiting for network adapter..."
-    $timeout = 10
-    $waited = 0
-    $adapter = $null
+    # Find adapter
+    $timeout = 10; $waited = 0; $adapter = $null
     while ($waited -lt $timeout) {
-        # Try exact name first
         $adapter = Get-NetAdapter -Name $InterfaceName -ErrorAction SilentlyContinue
         if (-not $adapter) {
-            # Try with wildcard (SecureConnect, SecureConnect 1, etc.)
             $adapter = Get-NetAdapter | Where-Object { $_.Name -like "$InterfaceName*" } | Select-Object -First 1
         }
         if ($adapter) { break }
         Start-Sleep -Milliseconds 500
         $waited += 0.5
     }
+    if (-not $adapter) { throw "Adapter not found" }
 
-    if (-not $adapter) {
-        # List all adapters for debugging
-        $allAdapters = Get-NetAdapter | Select-Object Name, InterfaceDescription, Status
-        Log "Available adapters: $($allAdapters | Out-String)"
-        throw "Adapter '$InterfaceName' not found after ${timeout}s"
-    }
-    Log "Adapter found: $($adapter.Name) - Status: $($adapter.Status)"
-
-    # Use the actual adapter name for subsequent commands
-    $adapterName = $adapter.Name
-
-    # Set IP using actual adapter name
-    Log "Setting IP address on '$adapterName'..."
-    $netshResult = netsh interface ip set address "$adapterName" static $ipAddress 255.255.255.0 2>&1
-    Log "netsh result: $netshResult"
-
-    # Set DNS
+    # Set IP and DNS
+    netsh interface ip set address "$($adapter.Name)" static $ipAddress 255.255.255.0 2>&1 | Out-Null
     if ($Config.DNS) {
-        Log "Setting DNS: $($Config.DNS)"
-        netsh interface ip set dns "$adapterName" static $Config.DNS 2>&1
+        $dns = ($Config.DNS -split ',')[0].Trim()
+        netsh interface ip set dns "$($adapter.Name)" static $dns 2>&1 | Out-Null
     }
 
-    # Add routes for all AllowedIPs (standard wg-quick behavior)
+    # Add routes for AllowedIPs
     foreach ($allowedIP in $Config.AllowedIPs) {
-        if ($allowedIP -eq "0.0.0.0/0") {
-            Log "Adding default route..."
-            route add 0.0.0.0 mask 0.0.0.0 $ipAddress metric 5 2>&1
-        } else {
-            # Parse CIDR notation (e.g., 172.20.2.0/24)
-            $parts = $allowedIP -split '/'
-            $network = $parts[0]
-            $cidr = if ($parts.Length -gt 1) { [int]$parts[1] } else { 32 }
+        $parts = $allowedIP -split '/'
+        $network = $parts[0]
+        $cidr = if ($parts.Length -gt 1) { [int]$parts[1] } else { 32 }
 
-            # Convert CIDR to subnet mask
+        if ($allowedIP -eq "0.0.0.0/0") {
+            route add 0.0.0.0 mask 0.0.0.0 $ipAddress metric 5 2>&1 | Out-Null
+        } else {
             $maskInt = [uint32]([math]::Pow(2, 32) - [math]::Pow(2, 32 - $cidr))
             $maskBytes = [BitConverter]::GetBytes($maskInt)
             [Array]::Reverse($maskBytes)
-            $subnetMask = ($maskBytes | ForEach-Object { $_.ToString() }) -join '.'
-
-            Log "Adding route: $network/$cidr -> $adapterName"
-            route add $network mask $subnetMask 0.0.0.0 IF $adapter.ifIndex metric 5 2>&1
+            $mask = ($maskBytes | ForEach-Object { $_.ToString() }) -join '.'
+            route add $network mask $mask 0.0.0.0 IF $adapter.ifIndex metric 5 2>&1 | Out-Null
         }
     }
-
-    Log "Network configured!"
 }
 
-# Stop daemon
 function Stop-Daemon {
-    Log "Stopping daemon..."
-    $process = Get-Process -Name "secureconnect-go" -ErrorAction SilentlyContinue
-    if ($process) {
-        Stop-Process -Name "secureconnect-go" -Force
-        Log "Daemon stopped"
-    } else {
-        Log "Daemon not running"
-    }
+    Get-Process -Name "secureconnect-go" -ErrorAction SilentlyContinue | Stop-Process -Force
     route delete 0.0.0.0 mask 0.0.0.0 2>$null
-    Log "Cleanup complete"
 }
 
 # Main
 try {
+    Log "Action: $Action"
     if ($Action -eq "up") {
-        if (-not (Test-Path $ConfigFile)) {
-            throw "Config not found: $ConfigFile"
-        }
-
+        if (-not (Test-Path $ConfigFile)) { throw "Config not found" }
         $config = Parse-Config $ConfigFile
         Start-Daemon
         Set-Config $config
         Set-Network $config
-
-        Log "SUCCESS: VPN is now active!"
-        Write-Host "[+] SecureConnect VPN is now active"
-
-    } elseif ($Action -eq "down") {
+        Log "Connected"
+    } else {
         Stop-Daemon
-        Log "SUCCESS: VPN disconnected"
-        Write-Host "[+] SecureConnect VPN disconnected"
+        Log "Disconnected"
     }
-
 } catch {
-    Log "FATAL ERROR: $_"
-    Write-Host "[-] Error: $_" -ForegroundColor Red
+    Log "Error: $_"
     exit 1
 }

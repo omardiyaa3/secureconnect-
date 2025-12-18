@@ -211,18 +211,14 @@ class VPNManager {
             // Use SecureConnect PowerShell script for DPI bypass
             console.log('Starting SecureConnect with DPI bypass...');
 
-            // Run the PowerShell script (TEMP: detailed error logging)
             const binDir = path.dirname(this.scQuickScript);
             const cmd = `powershell -ExecutionPolicy Bypass -File "${this.scQuickScript}" up "${configFile}"`;
 
             try {
-                const { stdout, stderr } = await execAsync(cmd, { cwd: binDir });
-                if (stdout) console.log('PS output:', stdout);
-                if (stderr) console.log('PS stderr:', stderr);
+                await execAsync(cmd, { cwd: binDir, timeout: 30000 });
             } catch (error) {
                 const details = error.stderr || error.stdout || error.message;
-                console.error('PS error:', details);
-                throw new Error(`PowerShell failed: ${details}`);
+                throw new Error(`Connection failed: ${details}`);
             }
 
             console.log('SecureConnect tunnel active with DPI bypass');
