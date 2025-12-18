@@ -172,14 +172,21 @@ function Set-Config {
     }
     $uapi += "`n"
 
-    # Send to daemon via named pipe (write-only, don't wait for response)
-    $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "AmneziaWG\$InterfaceName", [System.IO.Pipes.PipeDirection]::Out)
-    $pipe.Connect(5000)
+    # Send to daemon via named pipe
+    Write-Host "[#] Connecting to UAPI pipe..."
+    try {
+        $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "AmneziaWG\$InterfaceName", [System.IO.Pipes.PipeDirection]::Out)
+        $pipe.Connect(5000)
+        Write-Host "[#] Connected to pipe, sending config..."
 
-    $writer = New-Object System.IO.StreamWriter($pipe)
-    $writer.Write($uapi)
-    $writer.Flush()
-    $pipe.Close()
+        $writer = New-Object System.IO.StreamWriter($pipe)
+        $writer.AutoFlush = $true
+        $writer.Write($uapi)
+        $pipe.Close()
+        Write-Host "[+] Config sent to daemon"
+    } catch {
+        throw "Failed to send config via pipe: $_"
+    }
 
     # Give daemon time to process config
     Start-Sleep -Milliseconds 500
@@ -205,6 +212,12 @@ function Set-Network {
         Start-Sleep -Milliseconds 500
         $waited += 0.5
     }
+
+    $adapter = Get-NetAdapter -Name $InterfaceName -ErrorAction SilentlyContinue
+    if (-not $adapter) {
+        throw "Network interface '$InterfaceName' did not appear - configuration may have failed"
+    }
+    Write-Host "[+] Interface '$InterfaceName' is up (Status: $($adapter.Status))"
 
     # Set IP address
     Write-Host "[#] netsh interface ip set address `"$InterfaceName`" static $ipAddress 255.255.255.0"

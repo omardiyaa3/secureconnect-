@@ -125,8 +125,15 @@ jobs:
             $content = $content -replace 'O:SYD:P', 'O:BAD:P'
             Set-Content $uapiFile $content
             Write-Host "Patched UAPI socket path and security descriptor"
-            # Show patched lines to verify
-            Select-String -Path $uapiFile -Pattern "pipe|SDDL|SecurityDescriptor"
+          }
+
+          # Patch TUN adapter description from "WireGuard" to "SecureConnect"
+          $tunFile = "tun/tun_windows.go"
+          if (Test-Path $tunFile) {
+            $content = Get-Content $tunFile -Raw
+            $content = $content -replace 'WintunTunnelType\s*=\s*"WireGuard"', 'WintunTunnelType = "SecureConnect"'
+            Set-Content $tunFile $content
+            Write-Host "Patched adapter description to SecureConnect"
           }
 
           $env:GOOS="windows"; $env:GOARCH="amd64"; $env:CGO_ENABLED="0"
