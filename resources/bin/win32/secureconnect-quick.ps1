@@ -119,36 +119,37 @@ function Start-Daemon {
     $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WorkingDirectory $ScriptDir -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden
     Log "Daemon launched with PID: $($process.Id)"
 
-    # Wait for pipe
-    Log "Waiting for pipe to appear..."
-    $timeout = 15
+    # Wait for UAPI listener to start (Test-Path doesn't work for named pipes)
+    Log "Waiting for UAPI listener..."
+    $timeout = 10
     $waited = 0
-    while (-not (Test-Path $PipeName) -and $waited -lt $timeout) {
+    while ($waited -lt $timeout) {
         if ($process.HasExited) {
             $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
             $stderr = Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue
             Log "Daemon stdout: $stdout"
             Log "Daemon stderr: $stderr"
-            throw "Daemon exited with code $($process.ExitCode): $stderr"
+            throw "Daemon crashed (code $($process.ExitCode)): $stderr"
         }
+
+        # Check daemon output for UAPI ready message
+        $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
+        if ($stdout -match "UAPI listener started") {
+            Log "UAPI listener is ready!"
+            Start-Sleep -Milliseconds 300
+            return $process
+        }
+
         Start-Sleep -Milliseconds 500
         $waited += 0.5
     }
 
-    if (-not (Test-Path $PipeName)) {
-        # Check daemon output even if still running
-        $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
-        $stderr = Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue
-        Log "Daemon stdout: $stdout"
-        Log "Daemon stderr: $stderr"
-        if ($process.HasExited) {
-            throw "Daemon crashed (code $($process.ExitCode)): $stderr"
-        }
-        throw "Pipe not available after ${timeout}s. Daemon output: $stderr"
-    }
-
-    Log "Pipe is available!"
-    return $process
+    # Timeout - show what happened
+    $stdout = Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue
+    $stderr = Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue
+    Log "Daemon stdout: $stdout"
+    Log "Daemon stderr: $stderr"
+    throw "UAPI listener not ready after ${timeout}s"
 }
 
 # Configure via UAPI with timeout
