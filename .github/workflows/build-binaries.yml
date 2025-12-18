@@ -115,16 +115,18 @@ jobs:
           git clone https://github.com/amnezia-vpn/amneziawg-go.git
           cd amneziawg-go
 
-          # Patch UAPI to use simple pipe path (ProtectedPrefix requires SYSTEM privileges)
+          # Patch UAPI to use simple pipe path and fix security descriptor
           $uapiFile = "ipc/uapi_windows.go"
           if (Test-Path $uapiFile) {
             $content = Get-Content $uapiFile -Raw
-            # Replace ProtectedPrefix path with simple path (single backslashes in Go raw string)
+            # Replace ProtectedPrefix path with simple path
             $content = $content -replace 'ProtectedPrefix\\Administrators\\AmneziaWG\\', 'AmneziaWG\'
+            # Fix SDDL: change Owner from SYSTEM (O:SY) to BuiltinAdministrators (O:BA)
+            $content = $content -replace 'O:SYD:P', 'O:BAD:P'
             Set-Content $uapiFile $content
-            Write-Host "Patched UAPI socket path"
-            # Show the patched line to verify
-            Select-String -Path $uapiFile -Pattern "pipe"
+            Write-Host "Patched UAPI socket path and security descriptor"
+            # Show patched lines to verify
+            Select-String -Path $uapiFile -Pattern "pipe|SDDL|SecurityDescriptor"
           }
 
           $env:GOOS="windows"; $env:GOARCH="amd64"; $env:CGO_ENABLED="0"
