@@ -181,8 +181,15 @@ function Set-Config {
 
     $writer.Write($uapi)
     $writer.Flush()
+    $pipe.WaitForPipeDrain()
 
-    $response = $reader.ReadToEnd()
+    # Read response line by line (UAPI ends with blank line, not EOF)
+    $response = ""
+    while ($true) {
+        $line = $reader.ReadLine()
+        if ($null -eq $line -or $line -eq "") { break }
+        $response += $line + "`n"
+    }
 
     $pipe.Close()
 
