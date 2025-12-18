@@ -14,7 +14,8 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DaemonExe = Join-Path $ScriptDir "secureconnect-go.exe"
 $InterfaceName = "SecureConnect"
-$PipeName = "\\.\pipe\ProtectedPrefix\Administrators\WireGuard\$InterfaceName"
+# Pipe path is hardcoded in amneziawg-go source - can't change without modifying Go code
+$PipeName = "\\.\pipe\WireGuard\$InterfaceName"
 
 # Parse config file
 function Parse-Config {
@@ -95,19 +96,32 @@ function Start-Daemon {
         Start-Sleep -Seconds 1
     }
 
-    # Start the daemon
-    $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WindowStyle Hidden
+    # Verify wintun.dll exists
+    $wintunDll = Join-Path $ScriptDir "wintun.dll"
+    if (-not (Test-Path $wintunDll)) {
+        throw "wintun.dll not found in $ScriptDir"
+    }
+
+    # Start the daemon with working directory set to find wintun.dll
+    $process = Start-Process -FilePath $DaemonExe -ArgumentList $InterfaceName -PassThru -WindowStyle Hidden -WorkingDirectory $ScriptDir
 
     # Wait for pipe to be available
     $timeout = 10
     $waited = 0
     while (-not (Test-Path $PipeName) -and $waited -lt $timeout) {
+        # Check if process crashed
+        if ($process.HasExited) {
+            throw "Daemon crashed with exit code: $($process.ExitCode)"
+        }
         Start-Sleep -Milliseconds 500
         $waited += 0.5
     }
 
     if (-not (Test-Path $PipeName)) {
-        throw "Daemon failed to start - pipe not available"
+        if ($process.HasExited) {
+            throw "Daemon crashed with exit code: $($process.ExitCode)"
+        }
+        throw "Daemon failed to start - pipe not available at $PipeName"
     }
 
     Write-Host "[+] Daemon started (PID: $($process.Id))"
@@ -146,7 +160,7 @@ function Set-Config {
     $uapi += "`n"
 
     # Send to daemon via named pipe
-    $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "ProtectedPrefix\Administrators\WireGuard\$InterfaceName", [System.IO.Pipes.PipeDirection]::InOut)
+    $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "WireGuard\$InterfaceName", [System.IO.Pipes.PipeDirection]::InOut)
     $pipe.Connect(5000)
 
     $writer = New-Object System.IO.StreamWriter($pipe)
