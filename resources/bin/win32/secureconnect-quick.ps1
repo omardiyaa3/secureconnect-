@@ -172,21 +172,23 @@ function Set-Config {
     }
     $uapi += "`n"
 
-    # Send to daemon via named pipe
-    Write-Host "[#] Connecting to UAPI pipe..."
-    try {
-        $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "AmneziaWG\$InterfaceName", [System.IO.Pipes.PipeDirection]::Out)
-        $pipe.Connect(5000)
-        Write-Host "[#] Connected to pipe, sending config..."
+    # Write config to temp file
+    $tempConfig = [System.IO.Path]::GetTempFileName()
+    Set-Content -Path $tempConfig -Value $uapi -NoNewline
 
-        $writer = New-Object System.IO.StreamWriter($pipe)
-        $writer.AutoFlush = $true
-        $writer.Write($uapi)
-        $pipe.Close()
-        Write-Host "[+] Config sent to daemon"
+    Write-Host "[#] Sending config to UAPI pipe..."
+
+    # Use cmd.exe to pipe the config file to the named pipe
+    $pipePath = "\\.\pipe\AmneziaWG\$InterfaceName"
+    try {
+        $result = cmd /c "type `"$tempConfig`" > `"$pipePath`"" 2>&1
+        Write-Host "[+] Config sent via cmd pipe"
     } catch {
+        Remove-Item $tempConfig -Force -ErrorAction SilentlyContinue
         throw "Failed to send config via pipe: $_"
     }
+
+    Remove-Item $tempConfig -Force -ErrorAction SilentlyContinue
 
     # Give daemon time to process config
     Start-Sleep -Milliseconds 500
