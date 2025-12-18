@@ -183,6 +183,9 @@ function Set-Config {
     $uapi += "`n"
 
     Log "UAPI config built (length: $($uapi.Length) chars)"
+    # Log config content (mask private key for security)
+    $maskedConfig = $uapi -replace '(private_key=)[a-f0-9]+', '$1<masked>'
+    Log "UAPI config content:`n$maskedConfig"
 
     # Write to temp file
     $tempFile = Join-Path $env:TEMP "sc-uapi.txt"
@@ -212,7 +215,19 @@ function Set-Config {
     Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
 
     Log "Config sent successfully"
-    Start-Sleep -Milliseconds 500
+    Start-Sleep -Milliseconds 1000
+
+    # Verify config was applied by checking daemon output for peer info
+    $daemonStdout = Join-Path $env:TEMP "sc-daemon-stdout.log"
+    if (Test-Path $daemonStdout) {
+        $output = Get-Content $daemonStdout -Raw -ErrorAction SilentlyContinue
+        if ($output -match "Peer .* created") {
+            Log "Peer configuration confirmed!"
+        } else {
+            Log "WARNING: No peer confirmation in daemon output"
+            Log "Daemon output after config: $output"
+        }
+    }
 }
 
 # Set up networking

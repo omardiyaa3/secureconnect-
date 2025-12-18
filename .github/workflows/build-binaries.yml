@@ -130,13 +130,18 @@ jobs:
           # Patch TUN adapter description from "WireGuard" to "SecureConnect"
           $tunFile = "tun/tun_windows.go"
           if (Test-Path $tunFile) {
+            Write-Host "=== Patching adapter description ==="
             $content = Get-Content $tunFile -Raw
-            Write-Host "Before patch:"
-            Select-String -Path $tunFile -Pattern "WintunTunnelType"
-            $content = $content -replace 'WintunTunnelType\s*=\s*"WireGuard"', 'WintunTunnelType          = "SecureConnect"'
-            Set-Content $tunFile $content -NoNewline
-            Write-Host "After patch:"
-            Select-String -Path $tunFile -Pattern "WintunTunnelType"
+            Write-Host "Before: searching for WireGuard..."
+            if ($content -match '"WireGuard"') {
+              Write-Host "Found WireGuard string, replacing..."
+              $content = $content.Replace('"WireGuard"', '"SecureConnect"')
+              Set-Content $tunFile $content -NoNewline
+              Write-Host "After patch:"
+              Get-Content $tunFile | Select-String "WintunTunnelType"
+            } else {
+              Write-Host "WARNING: Could not find WireGuard string!"
+            }
           }
 
           $env:GOOS="windows"; $env:GOARCH="amd64"; $env:CGO_ENABLED="0"
