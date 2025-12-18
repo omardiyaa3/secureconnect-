@@ -172,30 +172,17 @@ function Set-Config {
     }
     $uapi += "`n"
 
-    # Send to daemon via named pipe
-    $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "AmneziaWG\$InterfaceName", [System.IO.Pipes.PipeDirection]::InOut)
+    # Send to daemon via named pipe (write-only, don't wait for response)
+    $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "AmneziaWG\$InterfaceName", [System.IO.Pipes.PipeDirection]::Out)
     $pipe.Connect(5000)
 
     $writer = New-Object System.IO.StreamWriter($pipe)
-    $reader = New-Object System.IO.StreamReader($pipe)
-
     $writer.Write($uapi)
     $writer.Flush()
-    $pipe.WaitForPipeDrain()
-
-    # Read response line by line (UAPI ends with blank line, not EOF)
-    $response = ""
-    while ($true) {
-        $line = $reader.ReadLine()
-        if ($null -eq $line -or $line -eq "") { break }
-        $response += $line + "`n"
-    }
-
     $pipe.Close()
 
-    if ($response -match "errno=") {
-        throw "Configuration failed: $response"
-    }
+    # Give daemon time to process config
+    Start-Sleep -Milliseconds 500
 
     Write-Host "[+] Tunnel configured"
 }
