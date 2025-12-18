@@ -253,14 +253,11 @@ class VPNManager {
             // Ignore errors - interface might not exist
         }
 
-        // Use SecureConnect Go binary for DPI bypass if available
+        // Use SecureConnect DPI wrapper script for DPI bypass (handles env vars internally)
         if (useDpiBypass && this.scGoBinary) {
-            const scGoDir = path.dirname(this.scGoBinary);
-            const ctlDir = path.dirname(this.wgPath);
-            // Use sh -c to set environment variables (sudo blocks env vars directly)
-            const cmd = `sudo sh -c 'WG_QUICK_USERSPACE_IMPLEMENTATION="${this.scGoBinary}" PATH="${scGoDir}:${ctlDir}:$PATH" "${quickPath}" up "${configFile}"'`;
+            const dpiScript = path.join(path.dirname(this.scGoBinary), 'secureconnect-dpi.sh');
             console.log('Using SecureConnect with DPI bypass');
-            await execAsync(cmd);
+            await execAsync(`sudo "${dpiScript}" up "${configFile}"`);
         } else {
             await execAsync(`sudo "${quickPath}" up "${configFile}"`);
         }
