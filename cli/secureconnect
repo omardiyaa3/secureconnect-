@@ -214,7 +214,7 @@ cmd_login() {
 
     # Call login API
     local response
-    response=$(curl -s -k -X POST "${api_url}/api/client/login" \
+    response=$(curl -s -k -X POST "${api_url}/api/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"username\": \"$username\", \"password\": \"$password\"}" \
         2>/dev/null) || {
@@ -222,10 +222,12 @@ cmd_login() {
         exit 1
     }
 
-    # Check for error
-    local error
-    error=$(echo "$response" | jq -r '.error // empty')
-    if [[ -n "$error" ]]; then
+    # Check for success
+    local success
+    success=$(echo "$response" | jq -r '.success // false')
+    if [[ "$success" != "true" ]]; then
+        local error
+        error=$(echo "$response" | jq -r '.error // "Login failed"')
         print_status error "Login failed: $error"
         exit 1
     fi
@@ -294,33 +296,70 @@ cmd_connect() {
 
     # Get WireGuard config from server
     local response
-    response=$(curl -s -k -X GET "${api_url}/api/client/config" \
+    response=$(curl -s -k -X POST "${api_url}/api/vpn/connect" \
         -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
         2>/dev/null) || {
         print_status error "Failed to fetch VPN configuration"
         exit 1
     }
 
-    # Check for error
-    local error
-    error=$(echo "$response" | jq -r '.error // empty')
-    if [[ -n "$error" ]]; then
+    # Check for success
+    local success
+    success=$(echo "$response" | jq -r '.success // false')
+    if [[ "$success" != "true" ]]; then
+        local error
+        error=$(echo "$response" | jq -r '.error // "Failed to get config"')
         print_status error "Failed to get config: $error"
         print_status info "Try logging in again with 'secureconnect login'"
         exit 1
     fi
 
-    # Extract WireGuard config
-    local wg_config
-    wg_config=$(echo "$response" | jq -r '.config // empty')
+    # Extract config object and generate WireGuard config file
+    local privateKey address dns publicKey endpoint allowedIPs
+    privateKey=$(echo "$response" | jq -r '.config.privateKey // empty')
+    address=$(echo "$response" | jq -r '.config.address // empty')
+    dns=$(echo "$response" | jq -r '.config.dns // empty')
+    publicKey=$(echo "$response" | jq -r '.config.publicKey // empty')
+    endpoint=$(echo "$response" | jq -r '.config.endpoint // empty')
+    allowedIPs=$(echo "$response" | jq -r '.config.allowedIPs // empty')
 
-    if [[ -z "$wg_config" ]]; then
+    if [[ -z "$privateKey" ]] || [[ -z "$publicKey" ]]; then
         print_status error "No VPN configuration received"
         exit 1
     fi
 
-    # Write config to temp file
-    echo "$wg_config" > "$WG_CONFIG_FILE"
+    # Check for DPI bypass (AWG) parameters
+    local has_awg
+    has_awg=$(echo "$response" | jq -r '.config.awg // empty')
+
+    # Generate WireGuard config file
+    {
+        echo "[Interface]"
+        echo "PrivateKey = $privateKey"
+        echo "Address = $address"
+        echo "DNS = $dns"
+
+        # Add AWG obfuscation parameters if present
+        if [[ -n "$has_awg" && "$has_awg" != "null" ]]; then
+            echo "Jc = $(echo "$response" | jq -r '.config.awg.Jc')"
+            echo "Jmin = $(echo "$response" | jq -r '.config.awg.Jmin')"
+            echo "Jmax = $(echo "$response" | jq -r '.config.awg.Jmax')"
+            echo "S1 = $(echo "$response" | jq -r '.config.awg.S1')"
+            echo "S2 = $(echo "$response" | jq -r '.config.awg.S2')"
+            echo "H1 = $(echo "$response" | jq -r '.config.awg.H1')"
+            echo "H2 = $(echo "$response" | jq -r '.config.awg.H2')"
+            echo "H3 = $(echo "$response" | jq -r '.config.awg.H3')"
+            echo "H4 = $(echo "$response" | jq -r '.config.awg.H4')"
+        fi
+
+        echo ""
+        echo "[Peer]"
+        echo "PublicKey = $publicKey"
+        echo "Endpoint = $endpoint"
+        echo "AllowedIPs = $allowedIPs"
+        echo "PersistentKeepalive = 25"
+    } > "$WG_CONFIG_FILE"
     chmod 600 "$WG_CONFIG_FILE"
 
     print_status info "Establishing VPN connection..."
