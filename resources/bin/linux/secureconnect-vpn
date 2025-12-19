@@ -11,8 +11,8 @@ SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="${SELF%/*}"
 export PATH="$SCRIPT_DIR:$PATH"
 
-# Use bundled awg tool
-AWG="$SCRIPT_DIR/awg"
+# Use bundled secureconnect-ctl tool (awg/wg equivalent)
+AWG="$SCRIPT_DIR/secureconnect-ctl"
 
 WG_CONFIG=""
 INTERFACE=""
