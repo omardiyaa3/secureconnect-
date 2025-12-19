@@ -205,6 +205,32 @@ jobs:
       - name: Build Linux installer
         run: npm run build:linux
 
+      - name: Create CLI package
+        run: |
+          # Create CLI distribution directory
+          mkdir -p dist/secureconnect-cli-linux-amd64
+
+          # Copy CLI scripts
+          cp cli/secureconnect dist/secureconnect-cli-linux-amd64/
+          cp cli/install.sh dist/secureconnect-cli-linux-amd64/
+          cp cli/uninstall.sh dist/secureconnect-cli-linux-amd64/
+
+          # Copy VPN binaries and scripts
+          cp resources/bin/linux/secureconnect-vpn dist/secureconnect-cli-linux-amd64/
+          cp resources/bin/linux/secureconnect-dpi.sh dist/secureconnect-cli-linux-amd64/
+          cp resources/bin/linux/secureconnect-go dist/secureconnect-cli-linux-amd64/
+          cp resources/bin/linux/secureconnect-ctl dist/secureconnect-cli-linux-amd64/
+
+          # Make all scripts executable
+          chmod +x dist/secureconnect-cli-linux-amd64/*
+
+          # Create tarball
+          cd dist
+          tar -czvf secureconnect-cli-linux-amd64.tar.gz secureconnect-cli-linux-amd64/
+
+          echo "=== CLI Package Contents ==="
+          tar -tzvf secureconnect-cli-linux-amd64.tar.gz
+
       - name: Upload Linux installers
         uses: actions/upload-artifact@v4
         with:
@@ -212,3 +238,9 @@ jobs:
           path: |
             dist/*.AppImage
             dist/*.deb
+
+      - name: Upload CLI package
+        uses: actions/upload-artifact@v4
+        with:
+          name: SecureConnect-CLI-Linux
+          path: dist/secureconnect-cli-linux-amd64.tar.gz

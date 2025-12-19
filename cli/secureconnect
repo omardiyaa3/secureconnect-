@@ -1,0 +1,494 @@
+#!/bin/bash
+# SecureConnect VPN CLI
+# Universal Linux CLI tool for SecureConnect VPN
+
+set -e
+
+VERSION="2.0.37"
+CONFIG_DIR="$HOME/.secureconnect"
+CONFIG_FILE="$CONFIG_DIR/config.json"
+CREDENTIALS_FILE="$CONFIG_DIR/credentials.json"
+WG_CONFIG_FILE="/tmp/secureconnect-$USER.conf"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Find the installation directory
+if [[ -L "$0" ]]; then
+    SCRIPT_PATH="$(readlink -f "$0")"
+else
+    SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+fi
+INSTALL_DIR="$(dirname "$SCRIPT_PATH")"
+
+# Check for required tools
+check_dependencies() {
+    local missing=()
+    for cmd in curl jq; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing+=("$cmd")
+        fi
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo -e "${RED}Error: Missing required tools: ${missing[*]}${NC}"
+        echo "Please install them:"
+        echo "  Ubuntu/Debian: sudo apt install ${missing[*]}"
+        echo "  Fedora/RHEL:   sudo dnf install ${missing[*]}"
+        echo "  Arch:          sudo pacman -S ${missing[*]}"
+        exit 1
+    fi
+}
+
+# Initialize config directory
+init_config() {
+    mkdir -p "$CONFIG_DIR"
+    chmod 700 "$CONFIG_DIR"
+}
+
+# Print usage
+usage() {
+    cat << EOF
+SecureConnect VPN CLI v${VERSION}
+
+Usage: secureconnect <command> [options]
+
+Commands:
+  login       Authenticate with a VPN portal
+  connect     Connect to the VPN
+  disconnect  Disconnect from the VPN
+  status      Show connection status
+  portals     List saved portals
+  logout      Clear saved credentials
+  version     Show version information
+  help        Show this help message
+
+Examples:
+  secureconnect login --portal vpn.company.com --user john
+  secureconnect connect
+  secureconnect connect --dpi          # Connect with DPI bypass
+  secureconnect status
+  secureconnect disconnect
+
+Options:
+  --portal, -p    Portal address (e.g., vpn.company.com)
+  --user, -u      Username
+  --password      Password (optional, will prompt if not provided)
+  --dpi, -d       Enable DPI bypass mode (AmneziaWG)
+  --help, -h      Show help for a command
+
+EOF
+}
+
+# Print colored status
+print_status() {
+    local status="$1"
+    local message="$2"
+    case "$status" in
+        success) echo -e "${GREEN}✓${NC} $message" ;;
+        error)   echo -e "${RED}✗${NC} $message" ;;
+        info)    echo -e "${BLUE}ℹ${NC} $message" ;;
+        warning) echo -e "${YELLOW}!${NC} $message" ;;
+    esac
+}
+
+# Save portal configuration
+save_portal() {
+    local portal="$1"
+    local name="$2"
+
+    init_config
+
+    # Create or update config
+    if [[ -f "$CONFIG_FILE" ]]; then
+        local existing
+        existing=$(cat "$CONFIG_FILE")
+        echo "$existing" | jq --arg portal "$portal" --arg name "$name" \
+            '.portals += [{"address": $portal, "name": $name}] | .current_portal = $portal' > "$CONFIG_FILE"
+    else
+        cat > "$CONFIG_FILE" << EOF
+{
+    "portals": [{"address": "$portal", "name": "$name"}],
+    "current_portal": "$portal"
+}
+EOF
+    fi
+    chmod 600 "$CONFIG_FILE"
+}
+
+# Save credentials (encrypted would be better, but keeping it simple)
+save_credentials() {
+    local portal="$1"
+    local username="$2"
+    local token="$3"
+    local gateway="$4"
+
+    init_config
+
+    cat > "$CREDENTIALS_FILE" << EOF
+{
+    "portal": "$portal",
+    "username": "$username",
+    "token": "$token",
+    "gateway": "$gateway"
+}
+EOF
+    chmod 600 "$CREDENTIALS_FILE"
+}
+
+# Load credentials
+load_credentials() {
+    if [[ -f "$CREDENTIALS_FILE" ]]; then
+        cat "$CREDENTIALS_FILE"
+    else
+        echo "{}"
+    fi
+}
+
+# Get current portal
+get_current_portal() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        jq -r '.current_portal // empty' "$CONFIG_FILE"
+    fi
+}
+
+# Login command
+cmd_login() {
+    local portal=""
+    local username=""
+    local password=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --portal|-p)
+                portal="$2"
+                shift 2
+                ;;
+            --user|-u)
+                username="$2"
+                shift 2
+                ;;
+            --password)
+                password="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    # Prompt for missing values
+    if [[ -z "$portal" ]]; then
+        read -rp "Portal address: " portal
+    fi
+
+    if [[ -z "$username" ]]; then
+        read -rp "Username: " username
+    fi
+
+    if [[ -z "$password" ]]; then
+        read -rsp "Password: " password
+        echo
+    fi
+
+    # Validate inputs
+    if [[ -z "$portal" ]] || [[ -z "$username" ]] || [[ -z "$password" ]]; then
+        print_status error "Portal, username, and password are required"
+        exit 1
+    fi
+
+    # Normalize portal address
+    portal="${portal#https://}"
+    portal="${portal#http://}"
+    portal="${portal%%/*}"
+
+    local api_url="https://${portal}:3000"
+
+    print_status info "Authenticating with ${portal}..."
+
+    # Call login API
+    local response
+    response=$(curl -s -k -X POST "${api_url}/api/client/login" \
+        -H "Content-Type: application/json" \
+        -d "{\"username\": \"$username\", \"password\": \"$password\"}" \
+        2>/dev/null) || {
+        print_status error "Failed to connect to portal"
+        exit 1
+    }
+
+    # Check for error
+    local error
+    error=$(echo "$response" | jq -r '.error // empty')
+    if [[ -n "$error" ]]; then
+        print_status error "Login failed: $error"
+        exit 1
+    fi
+
+    # Extract token and gateway
+    local token gateway
+    token=$(echo "$response" | jq -r '.token // empty')
+    gateway=$(echo "$response" | jq -r '.user.gateway // empty')
+
+    if [[ -z "$token" ]]; then
+        print_status error "Login failed: No token received"
+        exit 1
+    fi
+
+    # Save credentials
+    save_portal "$portal" "$portal"
+    save_credentials "$portal" "$username" "$token" "$gateway"
+
+    print_status success "Logged in as $username"
+    print_status info "Gateway: $gateway"
+    echo
+    echo "Run 'secureconnect connect' to establish VPN connection"
+}
+
+# Connect command
+cmd_connect() {
+    local use_dpi=0
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --dpi|-d)
+                use_dpi=1
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    # Check if already connected
+    if is_connected; then
+        print_status warning "Already connected to VPN"
+        cmd_status
+        exit 0
+    fi
+
+    # Load credentials
+    local creds
+    creds=$(load_credentials)
+
+    local portal token gateway
+    portal=$(echo "$creds" | jq -r '.portal // empty')
+    token=$(echo "$creds" | jq -r '.token // empty')
+    gateway=$(echo "$creds" | jq -r '.gateway // empty')
+
+    if [[ -z "$token" ]] || [[ -z "$portal" ]]; then
+        print_status error "Not logged in. Run 'secureconnect login' first"
+        exit 1
+    fi
+
+    local api_url="https://${portal}:3000"
+
+    print_status info "Fetching VPN configuration..."
+
+    # Get WireGuard config from server
+    local response
+    response=$(curl -s -k -X GET "${api_url}/api/client/config" \
+        -H "Authorization: Bearer $token" \
+        2>/dev/null) || {
+        print_status error "Failed to fetch VPN configuration"
+        exit 1
+    }
+
+    # Check for error
+    local error
+    error=$(echo "$response" | jq -r '.error // empty')
+    if [[ -n "$error" ]]; then
+        print_status error "Failed to get config: $error"
+        print_status info "Try logging in again with 'secureconnect login'"
+        exit 1
+    fi
+
+    # Extract WireGuard config
+    local wg_config
+    wg_config=$(echo "$response" | jq -r '.config // empty')
+
+    if [[ -z "$wg_config" ]]; then
+        print_status error "No VPN configuration received"
+        exit 1
+    fi
+
+    # Write config to temp file
+    echo "$wg_config" > "$WG_CONFIG_FILE"
+    chmod 600 "$WG_CONFIG_FILE"
+
+    print_status info "Establishing VPN connection..."
+
+    # Connect using appropriate script
+    local vpn_script
+    if [[ $use_dpi -eq 1 ]]; then
+        vpn_script="${INSTALL_DIR}/secureconnect-dpi.sh"
+        print_status info "DPI bypass mode enabled"
+    else
+        vpn_script="${INSTALL_DIR}/secureconnect-vpn"
+    fi
+
+    if [[ ! -x "$vpn_script" ]]; then
+        print_status error "VPN script not found: $vpn_script"
+        exit 1
+    fi
+
+    # Run VPN script with sudo
+    if sudo "$vpn_script" up "$WG_CONFIG_FILE"; then
+        print_status success "Connected to VPN!"
+        echo
+        cmd_status
+    else
+        print_status error "Failed to connect to VPN"
+        rm -f "$WG_CONFIG_FILE"
+        exit 1
+    fi
+}
+
+# Check if VPN is connected
+is_connected() {
+    ip link show sc0 &>/dev/null 2>&1
+}
+
+# Disconnect command
+cmd_disconnect() {
+    if ! is_connected; then
+        print_status info "Not connected to VPN"
+        exit 0
+    fi
+
+    print_status info "Disconnecting from VPN..."
+
+    # Try DPI script first, then regular script
+    local vpn_script="${INSTALL_DIR}/secureconnect-dpi.sh"
+    if [[ ! -x "$vpn_script" ]]; then
+        vpn_script="${INSTALL_DIR}/secureconnect-vpn"
+    fi
+
+    if sudo "$vpn_script" down "$WG_CONFIG_FILE" 2>/dev/null || sudo "$vpn_script" down sc0 2>/dev/null; then
+        print_status success "Disconnected from VPN"
+    else
+        # Force cleanup
+        sudo ip link delete sc0 2>/dev/null || true
+        print_status success "Disconnected from VPN"
+    fi
+
+    rm -f "$WG_CONFIG_FILE"
+}
+
+# Status command
+cmd_status() {
+    if ! is_connected; then
+        print_status info "Status: Disconnected"
+        exit 0
+    fi
+
+    echo -e "${GREEN}● Status: Connected${NC}"
+    echo
+
+    # Get interface info
+    local ip_addr
+    ip_addr=$(ip -4 addr show sc0 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1)
+
+    if [[ -n "$ip_addr" ]]; then
+        echo "  Tunnel IP: $ip_addr"
+    fi
+
+    # Get credentials info
+    local creds
+    creds=$(load_credentials)
+    local portal username
+    portal=$(echo "$creds" | jq -r '.portal // empty')
+    username=$(echo "$creds" | jq -r '.username // empty')
+
+    if [[ -n "$portal" ]]; then
+        echo "  Portal:    $portal"
+    fi
+    if [[ -n "$username" ]]; then
+        echo "  User:      $username"
+    fi
+
+    # Get transfer stats if available
+    local rx_bytes tx_bytes
+    rx_bytes=$(cat /sys/class/net/sc0/statistics/rx_bytes 2>/dev/null || echo "0")
+    tx_bytes=$(cat /sys/class/net/sc0/statistics/tx_bytes 2>/dev/null || echo "0")
+
+    # Convert to human readable
+    local rx_human tx_human
+    rx_human=$(numfmt --to=iec-i --suffix=B "$rx_bytes" 2>/dev/null || echo "${rx_bytes} B")
+    tx_human=$(numfmt --to=iec-i --suffix=B "$tx_bytes" 2>/dev/null || echo "${tx_bytes} B")
+
+    echo "  Received:  $rx_human"
+    echo "  Sent:      $tx_human"
+}
+
+# List portals command
+cmd_portals() {
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        print_status info "No portals configured"
+        exit 0
+    fi
+
+    echo "Saved portals:"
+    jq -r '.portals[] | "  - \(.name // .address)"' "$CONFIG_FILE"
+}
+
+# Logout command
+cmd_logout() {
+    rm -f "$CREDENTIALS_FILE"
+    print_status success "Logged out successfully"
+}
+
+# Version command
+cmd_version() {
+    echo "SecureConnect VPN CLI v${VERSION}"
+    echo "Installation: ${INSTALL_DIR}"
+}
+
+# Main
+main() {
+    check_dependencies
+
+    local command="${1:-help}"
+    shift || true
+
+    case "$command" in
+        login)
+            cmd_login "$@"
+            ;;
+        connect)
+            cmd_connect "$@"
+            ;;
+        disconnect)
+            cmd_disconnect "$@"
+            ;;
+        status)
+            cmd_status
+            ;;
+        portals)
+            cmd_portals
+            ;;
+        logout)
+            cmd_logout
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        help|--help|-h)
+            usage
+            ;;
+        *)
+            print_status error "Unknown command: $command"
+            echo "Run 'secureconnect help' for usage"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
