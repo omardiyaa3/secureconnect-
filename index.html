@@ -14,19 +14,19 @@
             align-items: center;
             justify-content: center;
         }
-        /* Linux: plain colors instead of glassy gradient */
+        /* Linux: plain solid colors (no glassy gradient) */
         body.linux-light {
-            background: #ffffff;
+            background: #f0f0f0;
             color: #333;
         }
         body.linux-dark {
-            background: #1a1a1a;
-            color: #fff;
+            background: #252525;
+            color: #e0e0e0;
         }
         body.linux-light input {
-            background: #f0f0f0;
+            background: #ffffff;
             color: #333;
-            border: 1px solid #ccc;
+            border: 1px solid #c0c0c0;
         }
         body.linux-light input::placeholder { color: #888; }
         body.linux-light button {
@@ -35,9 +35,9 @@
         }
         body.linux-light .error { background: rgba(239,68,68,0.15); color: #dc2626; }
         body.linux-dark input {
-            background: #333;
-            color: #fff;
-            border: 1px solid #555;
+            background: #333333;
+            color: #e0e0e0;
+            border: 1px solid #505050;
         }
         body.linux-dark input::placeholder { color: #888; }
         body.linux-dark button {

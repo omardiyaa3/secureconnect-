@@ -115,6 +115,83 @@
             }
         }
 
+        /* Linux: Plain solid backgrounds (no glassy effect) */
+        body.platform-linux {
+            background: #f0f0f0 !important;
+        }
+
+        body.platform-linux .glass-card {
+            background: #f0f0f0;
+            border: 1px solid #d0d0d0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        body.platform-linux .input-field,
+        body.platform-linux .dropdown-button {
+            background: #ffffff;
+            border-color: #c0c0c0;
+        }
+
+        body.platform-linux .dropdown-menu {
+            background: #ffffff;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        body.platform-linux .header {
+            border-bottom-color: #c0c0c0;
+        }
+
+        body.platform-linux .status-card {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        body.platform-linux .modal {
+            background: #ffffff;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        body.platform-linux .modal-backdrop {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        /* Linux Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            body.platform-linux {
+                background: #252525 !important;
+            }
+
+            body.platform-linux .glass-card {
+                background: #252525;
+                border: 1px solid #404040;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            }
+
+            body.platform-linux .input-field,
+            body.platform-linux .dropdown-button {
+                background: #333333;
+                border-color: #505050;
+            }
+
+            body.platform-linux .dropdown-menu {
+                background: #333333;
+            }
+
+            body.platform-linux .header {
+                border-bottom-color: #404040;
+            }
+
+            body.platform-linux .status-card {
+                background: rgba(255, 255, 255, 0.08);
+            }
+
+            body.platform-linux .modal {
+                background: #333333;
+            }
+        }
+
         /* Header */
         .header {
             display: flex;
