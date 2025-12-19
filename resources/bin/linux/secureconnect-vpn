@@ -93,16 +93,31 @@ auto_su() {
 }
 
 add_if() {
-	local ret
-	# Try kernel module first, fall back to userspace
-	if ! cmd ip link add "$INTERFACE" type wireguard 2>/dev/null && ! cmd ip link add "$INTERFACE" type amneziawg 2>/dev/null; then
-		ret=$?
-		# Use userspace implementation
-		local sc_binary="${WG_QUICK_USERSPACE_IMPLEMENTATION:-$SCRIPT_DIR/secureconnect-go}"
+	local ret use_userspace=0 sc_binary=""
+
+	# If WG_QUICK_USERSPACE_IMPLEMENTATION is set, always use userspace
+	if [[ -n "$WG_QUICK_USERSPACE_IMPLEMENTATION" ]]; then
+		sc_binary="$WG_QUICK_USERSPACE_IMPLEMENTATION"
+		use_userspace=1
+		echo "[!] Userspace implementation requested via environment" >&2
+	# Otherwise try kernel module first
+	elif cmd ip link add "$INTERFACE" type wireguard 2>/dev/null; then
+		echo "[+] Using kernel WireGuard" >&2
+		return 0
+	elif cmd ip link add "$INTERFACE" type amneziawg 2>/dev/null; then
+		echo "[+] Using kernel AmneziaWG" >&2
+		return 0
+	else
+		# Kernel failed, fall back to userspace
+		sc_binary="$SCRIPT_DIR/secureconnect-go"
+		use_userspace=1
+		echo "[!] Kernel module not available, using userspace" >&2
+	fi
+
+	if [[ $use_userspace -eq 1 ]]; then
 		if [[ ! -x "$sc_binary" ]]; then
-			die "No kernel module and userspace binary not found: $sc_binary"
+			die "Userspace binary not found: $sc_binary"
 		fi
-		echo "[!] Using SecureConnect userspace implementation" >&2
 
 		# Set up socket directory for userspace
 		SOCK_DIR="/var/run/amneziawg"
