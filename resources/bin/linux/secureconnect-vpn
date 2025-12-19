@@ -163,11 +163,17 @@ del_if() {
 		done
 	fi
 
-	# Clean up userspace daemon if used
-	if [[ $USING_USERSPACE -eq 1 ]]; then
-		# Kill userspace daemon by removing socket (daemon will exit)
-		rm -f "$SOCK_DIR/$INTERFACE.sock" 2>/dev/null
-		# Also kill any remaining process
+	# Clean up userspace daemon if used (detect by socket presence)
+	local sock_found=0
+	for sock_dir in "/var/run/amneziawg" "/var/run/wireguard"; do
+		if [[ -S "$sock_dir/$INTERFACE.sock" ]]; then
+			echo "[#] Cleaning up userspace daemon socket" >&2
+			rm -f "$sock_dir/$INTERFACE.sock" 2>/dev/null
+			sock_found=1
+		fi
+	done
+	# Also kill any remaining userspace daemon process
+	if [[ $sock_found -eq 1 ]] || pgrep -f "secureconnect-go $INTERFACE" >/dev/null 2>&1; then
 		pkill -f "secureconnect-go $INTERFACE" 2>/dev/null || true
 	fi
 
@@ -395,6 +401,13 @@ cmd_up() {
 }
 
 cmd_down() {
+	# Set socket dir for userspace mode (if used) so AWG can find the interface
+	for sock_dir in "/var/run/amneziawg" "/var/run/wireguard"; do
+		if [[ -S "$sock_dir/$INTERFACE.sock" ]]; then
+			export WG_SOCKET_DIR="$sock_dir"
+			break
+		fi
+	done
 	[[ " $("$AWG" show interfaces) " == *" $INTERFACE "* ]] || die "\`$INTERFACE' is not a WireGuard interface"
 	execute_hooks "${PRE_DOWN[@]}"
 	[[ $SAVE_CONFIG -eq 0 ]] || save_config
