@@ -7,7 +7,7 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.36';
+const APP_VERSION = '2.0.37';
 
 // Enable transparent visuals for Linux
 if (process.platform === 'linux') {
@@ -28,6 +28,26 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
 
 // Also handle Node.js fetch/https requests
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+// Ensure single instance - if another instance starts, focus the existing one
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+    // Another instance is already running - quit this one
+    app.quit();
+} else {
+    // Handle second instance launch - focus existing window
+    app.on('second-instance', () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            if (!mainWindow.isVisible()) mainWindow.show();
+            mainWindow.focus();
+        } else {
+            // Window was closed, recreate it
+            createWindow();
+        }
+    });
+}
 
 let tray = null;
 let mainWindow = null;
