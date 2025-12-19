@@ -70,7 +70,7 @@ Commands:
 Examples:
   secureconnect login --portal vpn.company.com --user john
   secureconnect connect
-  secureconnect connect --dpi          # Connect with DPI bypass
+  secureconnect connect --dpi          # Use in restricted networks
   secureconnect status
   secureconnect disconnect
 
@@ -78,7 +78,7 @@ Options:
   --portal, -p    Portal address (e.g., vpn.company.com)
   --user, -u      Username
   --password      Password (optional, will prompt if not provided)
-  --dpi, -d       Enable DPI bypass mode (AmneziaWG)
+  --dpi, -d       Enhanced connection mode for restricted networks
   --help, -h      Show help for a command
 
 EOF
@@ -368,7 +368,6 @@ cmd_connect() {
     local vpn_script
     if [[ $use_dpi -eq 1 ]]; then
         vpn_script="${INSTALL_DIR}/secureconnect-dpi.sh"
-        print_status info "DPI bypass mode enabled"
     else
         vpn_script="${INSTALL_DIR}/secureconnect-vpn"
     fi
@@ -378,13 +377,26 @@ cmd_connect() {
         exit 1
     fi
 
-    # Run VPN script with sudo
-    if sudo "$vpn_script" up "$WG_CONFIG_FILE"; then
+    # Run VPN script with sudo, capture output
+    local output
+    if output=$(sudo "$vpn_script" up "$WG_CONFIG_FILE" 2>&1); then
         print_status success "Connected to VPN!"
         echo
         cmd_status
     else
-        print_status error "Failed to connect to VPN"
+        # Check if it's a kernel module issue
+        if echo "$output" | grep -q "Protocol not supported\|kernel module\|modprobe"; then
+            print_status error "Connection failed"
+            echo
+            print_status info "Your system doesn't support the standard connection mode."
+            print_status info "Try using enhanced mode for restricted networks:"
+            echo
+            echo "    secureconnect connect --dpi"
+            echo
+        else
+            print_status error "Failed to connect to VPN"
+            echo "$output" | head -5
+        fi
         rm -f "$WG_CONFIG_FILE"
         exit 1
     fi
