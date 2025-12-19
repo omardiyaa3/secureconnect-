@@ -14,6 +14,39 @@
             align-items: center;
             justify-content: center;
         }
+        /* Linux: plain colors instead of glassy gradient */
+        body.linux-light {
+            background: #ffffff;
+            color: #333;
+        }
+        body.linux-dark {
+            background: #1a1a1a;
+            color: #fff;
+        }
+        body.linux-light input {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+        body.linux-light input::placeholder { color: #888; }
+        body.linux-light button {
+            background: #667eea;
+            color: #fff;
+        }
+        body.linux-light .error { background: rgba(239,68,68,0.15); color: #dc2626; }
+        body.linux-dark input {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+        }
+        body.linux-dark input::placeholder { color: #888; }
+        body.linux-dark button {
+            background: #667eea;
+            color: #fff;
+        }
+        body.linux-dark .error { background: rgba(239,68,68,0.3); }
+        body.linux-dark .status-icon { background: #10b981; }
+        body.linux-light .status-icon { background: #10b981; }
         .container { width: 350px; text-align: center; }
         .logo { font-size: 48px; margin-bottom: 10px; }
         h1 { font-size: 24px; margin-bottom: 30px; font-weight: 300; }
@@ -62,6 +95,15 @@
             font-size: 36px;
         }
     </style>
+    <script>
+        // Detect Linux and apply plain theme
+        if (navigator.platform.toLowerCase().includes('linux')) {
+            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.addEventListener('DOMContentLoaded', () => {
+                document.body.classList.add(isDark ? 'linux-dark' : 'linux-light');
+            });
+        }
+    </script>
 </head>
 <body>
     <div class="container">
