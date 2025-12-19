@@ -14,6 +14,10 @@ export PATH="$SCRIPT_DIR:$PATH"
 # Use bundled secureconnect-ctl tool (awg/wg equivalent)
 AWG="$SCRIPT_DIR/secureconnect-ctl"
 
+# Socket directory for userspace implementation
+SOCK_DIR="/var/run/wireguard"
+USING_USERSPACE=0
+
 WG_CONFIG=""
 INTERFACE=""
 ADDRESSES=( )
@@ -99,7 +103,29 @@ add_if() {
 			die "No kernel module and userspace binary not found: $sc_binary"
 		fi
 		echo "[!] Using SecureConnect userspace implementation" >&2
-		cmd "$sc_binary" "$INTERFACE"
+
+		# Set up socket directory for userspace
+		SOCK_DIR="/var/run/amneziawg"
+		mkdir -p "$SOCK_DIR"
+		export WG_SOCKET_DIR="$SOCK_DIR"
+		USING_USERSPACE=1
+
+		# Start userspace daemon in background
+		"$sc_binary" "$INTERFACE" &
+		local daemon_pid=$!
+
+		# Wait for socket to be created (up to 5 seconds)
+		local waited=0
+		while [[ ! -S "$SOCK_DIR/$INTERFACE.sock" && $waited -lt 50 ]]; do
+			sleep 0.1
+			waited=$((waited + 1))
+		done
+
+		if [[ ! -S "$SOCK_DIR/$INTERFACE.sock" ]]; then
+			kill $daemon_pid 2>/dev/null
+			die "Userspace daemon failed to create socket"
+		fi
+		echo "[+] Userspace daemon ready" >&2
 	fi
 }
 
@@ -121,6 +147,15 @@ del_if() {
 			cmd ip -6 rule delete table main suppress_prefixlength 0
 		done
 	fi
+
+	# Clean up userspace daemon if used
+	if [[ $USING_USERSPACE -eq 1 ]]; then
+		# Kill userspace daemon by removing socket (daemon will exit)
+		rm -f "$SOCK_DIR/$INTERFACE.sock" 2>/dev/null
+		# Also kill any remaining process
+		pkill -f "secureconnect-go $INTERFACE" 2>/dev/null || true
+	fi
+
 	cmd ip link delete dev "$INTERFACE"
 }
 
