@@ -143,13 +143,15 @@ function updateTrayIcon() {
 }
 
 function createWindow() {
+    const isLinux = process.platform === 'linux';
+
     const windowOptions = {
         width: 300,
         height: 380,
         resizable: false,
         show: false,
         frame: false,
-        transparent: true,
+        transparent: !isLinux,  // Disable transparency on Linux
         alwaysOnTop: true,
         skipTaskbar: true,
         hasShadow: true,
@@ -171,8 +173,9 @@ function createWindow() {
         windowOptions.transparent = true;
         windowOptions.backgroundColor = '#00000000';
     } else {
-        // Linux: Transparent background (blur handled by compositor if available)
-        windowOptions.backgroundColor = '#00000000';
+        // Linux: Solid background (no transparency)
+        windowOptions.transparent = false;
+        windowOptions.backgroundColor = '#f0f0f0';
     }
 
     mainWindow = new BrowserWindow(windowOptions);
