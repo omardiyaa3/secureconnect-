@@ -161,7 +161,7 @@ jobs:
           path: dist/*.exe
 
   build-linux:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -176,11 +176,6 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools musl-dev linux-libc-dev
-
       - name: Build native binaries
         run: |
           # Build secureconnect-go (already static with CGO_ENABLED=0)
@@ -189,11 +184,10 @@ jobs:
           GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o ../resources/bin/linux/secureconnect-go .
           cd ..
 
-          # Build secureconnect-ctl with static linking for compatibility
+          # Build secureconnect-ctl (links to GLIBC 2.31 from Ubuntu 20.04 - widely compatible)
           git clone https://github.com/amnezia-vpn/amneziawg-tools.git
           cd amneziawg-tools/src
-          # Use musl-gcc with system kernel headers
-          make clean && make CC="musl-gcc -I/usr/include -I/usr/include/x86_64-linux-gnu" LDFLAGS="-static -s" RUNSTATEDIR="/var/run"
+          make clean && make LDFLAGS="-s" RUNSTATEDIR="/var/run"
           cp wg ../../resources/bin/linux/secureconnect-ctl
           cd ../..
 
