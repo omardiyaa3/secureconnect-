@@ -133,8 +133,9 @@ collect_inputs() {
     read -rp "VPN subnet [10.10.0.0/24]: " VPN_SUBNET
     VPN_SUBNET="${VPN_SUBNET:-10.10.0.0/24}"
 
-    # Site-to-site specific inputs
+    # Network routing configuration
     if [[ "$vpn_type" == "2" ]]; then
+        # Site-to-Site VPN
         echo ""
         echo -e "${CYAN}Site-to-Site Configuration:${NC}"
 
@@ -150,7 +151,13 @@ collect_inputs() {
             exit 1
         fi
     else
-        REMOTE_SUBNET=""
+        # Remote Access VPN
+        echo ""
+        read -rp "Target network to access (e.g., 192.168.10.0/24): " REMOTE_SUBNET
+        if [[ -z "$REMOTE_SUBNET" ]]; then
+            print_status error "Target network is required"
+            exit 1
+        fi
         LOCAL_SUBNET=""
     fi
 
@@ -178,6 +185,8 @@ collect_inputs() {
     if [[ "$vpn_type" == "2" ]]; then
         echo "  Remote Subnet: $REMOTE_SUBNET"
         echo "  Local Subnet:  $LOCAL_SUBNET"
+    else
+        echo "  Target Network: $REMOTE_SUBNET"
     fi
     echo ""
 
@@ -244,6 +253,12 @@ install_dependencies() {
             make > /dev/null 2>&1
             cp wg /usr/local/bin/awg
             chmod +x /usr/local/bin/awg
+            # Also install awg-quick script
+            cp wg-quick/linux.bash /usr/local/bin/awg-quick
+            chmod +x /usr/local/bin/awg-quick
+            # Fix awg-quick to use 'awg' instead of 'wg'
+            sed -i 's/WG_QUICK_USERSPACE_IMPLEMENTATION=wg/WG_QUICK_USERSPACE_IMPLEMENTATION=awg/' /usr/local/bin/awg-quick
+            sed -i 's/\bwg\b/awg/g' /usr/local/bin/awg-quick
             cd /tmp
             rm -rf amneziawg-tools
 
@@ -873,8 +888,8 @@ SCHEMA
     # Initialize database
     sqlite3 "$DB_PATH" < "${INSTALL_DIR}/schema.sql"
 
-    # Create admin user
-    ADMIN_HASH=$(echo -n "$ADMIN_PASS" | node -e "const bcrypt=require('bcrypt');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(bcrypt.hashSync(d,10)));")
+    # Create admin user - hash password using node
+    ADMIN_HASH=$(cd "$INSTALL_DIR" && node -e "const bcrypt=require('bcrypt');console.log(bcrypt.hashSync(process.argv[1],10));" "$ADMIN_PASS")
 
     sqlite3 "$DB_PATH" "INSERT INTO users (username, password_hash, customer_id, is_active) VALUES ('$ADMIN_USER', '$ADMIN_HASH', 'admin', 1);"
 
@@ -960,12 +975,17 @@ configure_networking() {
 create_services() {
     print_status info "Creating systemd services..."
 
+    # Find awg binary location
+    AWG_BIN=$(command -v awg 2>/dev/null || echo "/usr/local/bin/awg")
+    AMNEZIAWG_GO_BIN=$(command -v amneziawg-go 2>/dev/null || echo "/usr/local/bin/amneziawg-go")
+
     # Create environment file
     cat > "${INSTALL_DIR}/.env" << ENVFILE
 PORT=${API_PORT}
 JWT_SECRET=${JWT_SECRET}
 ADMIN_API_KEY=${ADMIN_API_KEY}
 AWG_PARAMS={"Jc":4,"Jmin":40,"Jmax":70,"S1":${AWG_S1},"S2":${AWG_S2},"H1":${AWG_H1},"H2":${AWG_H2},"H3":${AWG_H3},"H4":${AWG_H4}}
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENVFILE
     chmod 600 "${INSTALL_DIR}/.env"
 
@@ -987,8 +1007,39 @@ RestartSec=5
 WantedBy=multi-user.target
 SERVICE
 
-    # AmneziaWG service (using userspace if kernel module not available)
-    if command -v amneziawg-go &> /dev/null || [[ -f /usr/local/bin/amneziawg-go ]]; then
+    # AmneziaWG service - prefer awg-quick (kernel module) over userspace
+    AWG_QUICK_BIN=$(command -v awg-quick 2>/dev/null)
+    if [[ -z "$AWG_QUICK_BIN" ]]; then
+        # Check common locations
+        for path in /usr/local/bin/awg-quick /usr/bin/awg-quick; do
+            if [[ -x "$path" ]]; then
+                AWG_QUICK_BIN="$path"
+                break
+            fi
+        done
+    fi
+
+    if [[ -n "$AWG_QUICK_BIN" && -x "$AWG_QUICK_BIN" ]]; then
+        # Use awg-quick (kernel module) - preferred method
+        print_status info "Using awg-quick (kernel module)"
+        cat > "${SYSTEMD_DIR}/secureconnect-wg.service" << SERVICE
+[Unit]
+Description=SecureConnect AmneziaWG Interface
+After=network.target
+Before=secureconnect-api.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=${AWG_QUICK_BIN} up ${WG_CONFIG}
+ExecStop=${AWG_QUICK_BIN} down ${WG_CONFIG}
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+    elif [[ -x "$AMNEZIAWG_GO_BIN" ]]; then
+        # Fallback to userspace daemon (when kernel module not available)
+        print_status info "Using amneziawg-go (userspace fallback)"
         cat > "${SYSTEMD_DIR}/secureconnect-wg.service" << SERVICE
 [Unit]
 Description=SecureConnect AmneziaWG Interface
@@ -997,9 +1048,9 @@ Before=secureconnect-api.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/amneziawg-go awg0
+ExecStart=${AMNEZIAWG_GO_BIN} awg0
 ExecStartPost=/bin/sleep 2
-ExecStartPost=/usr/local/bin/awg setconf awg0 ${WG_CONFIG}
+ExecStartPost=/bin/sh -c 'grep -v "^Address\\|^Table\\|^DNS" ${WG_CONFIG} > /tmp/awg0-stripped.conf && ${AWG_BIN} setconf awg0 /tmp/awg0-stripped.conf'
 ExecStartPost=/sbin/ip address add ${GATEWAY_IP} dev awg0
 ExecStartPost=/sbin/ip link set awg0 up
 ExecStop=/sbin/ip link delete awg0
@@ -1010,22 +1061,8 @@ RestartSec=5
 WantedBy=multi-user.target
 SERVICE
     else
-        # Use wg-quick style for kernel module
-        cat > "${SYSTEMD_DIR}/secureconnect-wg.service" << SERVICE
-[Unit]
-Description=SecureConnect AmneziaWG Interface
-After=network.target
-Before=secureconnect-api.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/usr/bin/wg-quick up ${WG_CONFIG}
-ExecStop=/usr/bin/wg-quick down ${WG_CONFIG}
-
-[Install]
-WantedBy=multi-user.target
-SERVICE
+        print_status error "No AmneziaWG runtime found (awg-quick or amneziawg-go)"
+        exit 1
     fi
 
     systemctl daemon-reload
@@ -1058,6 +1095,7 @@ print_completion() {
     echo "  API URL:        https://${PUBLIC_IP}:${API_PORT}"
     echo "  WireGuard:      ${PUBLIC_IP}:${WG_PORT} (UDP)"
     echo "  VPN Subnet:     ${VPN_SUBNET}"
+    echo "  Target Network: ${REMOTE_SUBNET}"
     echo ""
     echo -e "${CYAN}Admin Credentials:${NC}"
     echo "  Username:       ${ADMIN_USER}"
@@ -1080,7 +1118,7 @@ print_completion() {
     echo "  Restart API:    systemctl restart secureconnect-api"
     echo ""
     echo -e "${CYAN}Add Users via API:${NC}"
-    echo "  curl -X POST https://${PUBLIC_IP}:${API_PORT}/api/admin/users \\"
+    echo "  curl -k -X POST https://${PUBLIC_IP}:${API_PORT}/api/admin/users \\"
     echo "    -H 'X-Admin-Api-Key: ${ADMIN_API_KEY}' \\"
     echo "    -H 'Content-Type: application/json' \\"
     echo "    -d '{\"username\": \"newuser\", \"password\": \"password123\"}'"

@@ -27,11 +27,36 @@ jobs:
       - name: Bundle bash 5 for macOS
         run: |
           # macOS ships with bash 3.2, but we need bash 4+ for associative arrays
-          brew install bash
+          brew install bash readline
+
+          # Copy bash binary
           cp $(brew --prefix)/bin/bash resources/bin/darwin/secureconnect-bash
           chmod +x resources/bin/darwin/secureconnect-bash
+
+          # Copy readline library that bash depends on
+          READLINE_LIB=$(otool -L $(brew --prefix)/bin/bash | grep readline | awk '{print $1}')
+          if [ -n "$READLINE_LIB" ] && [ -f "$READLINE_LIB" ]; then
+            cp "$READLINE_LIB" resources/bin/darwin/
+            READLINE_FILENAME=$(basename "$READLINE_LIB")
+            # Update bash to look for readline in the same directory
+            install_name_tool -change "$READLINE_LIB" "@executable_path/$READLINE_FILENAME" resources/bin/darwin/secureconnect-bash
+            echo "Bundled readline library: $READLINE_FILENAME"
+          fi
+
+          # Also copy any other Homebrew dependencies
+          for lib in $(otool -L resources/bin/darwin/secureconnect-bash | grep "/opt/homebrew\|/usr/local" | awk '{print $1}'); do
+            if [ -f "$lib" ]; then
+              LIBNAME=$(basename "$lib")
+              cp "$lib" resources/bin/darwin/
+              install_name_tool -change "$lib" "@executable_path/$LIBNAME" resources/bin/darwin/secureconnect-bash
+              echo "Bundled library: $LIBNAME"
+            fi
+          done
+
           echo "Bundled bash version:"
           resources/bin/darwin/secureconnect-bash --version
+          echo "Library dependencies after fix:"
+          otool -L resources/bin/darwin/secureconnect-bash
 
       - name: Build native binaries
         run: |
