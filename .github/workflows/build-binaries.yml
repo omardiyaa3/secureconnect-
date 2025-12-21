@@ -77,6 +77,14 @@ jobs:
           otool -L resources/bin/darwin/secureconnect-bash
 
           echo ""
+          echo "=== Re-signing binaries after modification ==="
+          # install_name_tool breaks code signatures, so we need to re-sign
+          codesign --force --sign - resources/bin/darwin/secureconnect-bash
+          for lib in resources/bin/darwin/lib*.dylib; do
+            codesign --force --sign - "$lib"
+          done
+
+          echo ""
           echo "=== Testing bash ==="
           resources/bin/darwin/secureconnect-bash --version
 
