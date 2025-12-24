@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - SecureConnect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 200px;
+            background: #fafafa;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            padding-top: 40px; /* Space for macOS traffic lights */
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            cursor: pointer;
+            color: #666;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            background: #f0f0f0;
+        }
+
+        .nav-item.active {
+            background: #e8f5e9;
+            color: #4caf50;
+            font-weight: 500;
+        }
+
+        .nav-item .icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-item .icon svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .sidebar-spacer {
+            flex: 1;
+        }
+
+        .sign-out {
+            padding: 15px 20px;
+            border-top: 1px solid #e0e0e0;
+            cursor: pointer;
+            color: #666;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .sign-out:hover {
+            background: #ffebee;
+            color: #f44336;
+        }
+
+        .sign-out .icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            background: #fff;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        /* Connections View */
+        .connections-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .connections-header .logo {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 10px;
+        }
+
+        .connections-header h2 {
+            font-size: 18px;
+            font-weight: 500;
+            color: #4caf50;
+            margin-bottom: 5px;
+        }
+
+        .connections-header p {
+            color: #888;
+            font-size: 13px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 500;
+            margin: 20px 0;
+        }
+
+        .status-badge.connected {
+            background: #e8f5e9;
+            color: #4caf50;
+        }
+
+        .status-badge.disconnected {
+            background: #ffebee;
+            color: #f44336;
+        }
+
+        .status-badge .status-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-badge.connected .status-icon {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-badge.disconnected .status-icon {
+            background: #f44336;
+            color: white;
+        }
+
+        /* Statistics */
+        .statistics {
+            background: #fafafa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .statistics h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .stat-item {
+            padding: 10px;
+        }
+
+        .stat-item label {
+            display: block;
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .stat-item span {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-disconnect {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-disconnect:hover {
+            background: #d32f2f;
+        }
+
+        .btn-connect {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-connect:hover {
+            background: #43a047;
+        }
+
+        .btn-primary {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #43a047;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        /* Manage Portals */
+        .portals-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .portals-header h2 {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .btn-add {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #4caf50;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-add:hover {
+            background: #43a047;
+            transform: scale(1.05);
+        }
+
+        .portals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .portals-table th {
+            text-align: left;
+            padding: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #888;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .portals-table td {
+            padding: 15px 12px;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .portal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .portal-actions button {
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-edit {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .btn-edit:hover {
+            background: #bbdefb;
+        }
+
+        .btn-delete {
+            background: #ffebee;
+            color: #f44336;
+        }
+
+        .btn-delete:hover {
+            background: #ffcdd2;
+        }
+
+        .no-portals {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            width: 400px;
+            max-width: 90%;
+        }
+
+        .modal-content h3 {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4caf50;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* Logs View */
+        .logs-info {
+            background: #fafafa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .logs-info p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        /* About View */
+        .about-content {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .about-logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+
+        .about-content h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .about-content .version {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .about-content .copyright {
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        /* Center content */
+        .center-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="nav-item active" data-view="connections">
+                <span class="icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                </span>
+                Connections
+            </div>
+            <div class="nav-item" data-view="portals">
+                <span class="icon">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+                </span>
+                Manage Portals
+            </div>
+            <div class="nav-item" data-view="logs">
+                <span class="icon">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                </span>
+                Logs
+            </div>
+            <div class="nav-item" data-view="about">
+                <span class="icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                </span>
+                About
+            </div>
+
+            <div class="sidebar-spacer"></div>
+
+            <div class="sign-out" id="signOutBtn">
+                <span class="icon">
+                    <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                </span>
+                Sign out
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Connections View -->
+            <div class="view active" id="connections-view">
+                <div class="connections-header">
+                    <img src="resources/icons/worldposta-logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+                    <h2>Secure Connect</h2>
+                    <p>Welcome to WorldPosta secure connect</p>
+                </div>
+
+                <div class="center-content">
+                    <div class="status-badge disconnected" id="statusBadge">
+                        <span class="status-icon">✕</span>
+                        <span id="statusText">Disconnected</span>
+                    </div>
+
+                    <div class="statistics" id="statisticsPanel" style="display: none;">
+                        <h3>Connection Statistics</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <label>Assigned IP Address(es):</label>
+                                <span id="statIP">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Session Uptime:</label>
+                                <span id="statUptime">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Protocol:</label>
+                                <span id="statProtocol">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Gateway IP Address:</label>
+                                <span id="statGateway">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Bytes In:</label>
+                                <span id="statBytesIn">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Bytes Out:</label>
+                                <span id="statBytesOut">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-disconnect" id="disconnectBtn" style="display: none;">Disconnect</button>
+                </div>
+            </div>
+
+            <!-- Manage Portals View -->
+            <div class="view" id="portals-view">
+                <div class="portals-header">
+                    <h2>Manage Portals</h2>
+                    <button class="btn-add" id="addPortalBtn">+</button>
+                </div>
+
+                <table class="portals-table">
+                    <thead>
+                        <tr>
+                            <th>Portal name</th>
+                            <th>Server IP Address</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="portalsList">
+                        <!-- Portals will be loaded here -->
+                    </tbody>
+                </table>
+
+                <div class="no-portals" id="noPortals" style="display: none;">
+                    <p>No portals configured. Click + to add one.</p>
+                </div>
+            </div>
+
+            <!-- Logs View -->
+            <div class="view" id="logs-view">
+                <h2 style="margin-bottom: 20px;">Logs</h2>
+                <div class="logs-info">
+                    <p>If you're having trouble with Secure Connect, please contact your system administrator.</p>
+                    <p>They might need to see the Secure Connect logs in order to troubleshoot the problem.</p>
+                </div>
+                <button class="btn btn-primary" id="collectLogsBtn">Collect Logs</button>
+            </div>
+
+            <!-- About View -->
+            <div class="view" id="about-view">
+                <div class="about-content">
+                    <img src="logo.jpeg" alt="SecureConnect Logo" class="about-logo" onerror="this.style.display='none'">
+                    <h2>SecureConnect</h2>
+                    <p class="version" id="appVersion">Version 2.0.0</p>
+                    <p class="copyright">&copy; 2024 WorldPosta. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Portal Modal -->
+    <div class="modal" id="portalModal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Add Portal</h3>
+            <div class="form-group">
+                <label>Portal name</label>
+                <input type="text" id="portalName" placeholder="Your VPN Server">
+            </div>
+            <div class="form-group">
+                <label>Server IP Address</label>
+                <input type="text" id="portalIP" placeholder="192.168.1.1">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+                <button class="btn btn-primary" id="modalSave">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let portals = [];
+        let editingPortalId = null;
+        let statsInterval = null;
+
+        // DOM Elements
+        const views = document.querySelectorAll('.view');
+        const navItems = document.querySelectorAll('.nav-item');
+        const signOutBtn = document.getElementById('signOutBtn');
+        const statusBadge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
+        const statisticsPanel = document.getElementById('statisticsPanel');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const portalsList = document.getElementById('portalsList');
+        const noPortals = document.getElementById('noPortals');
+        const addPortalBtn = document.getElementById('addPortalBtn');
+        const portalModal = document.getElementById('portalModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const portalName = document.getElementById('portalName');
+        const portalIP = document.getElementById('portalIP');
+        const modalCancel = document.getElementById('modalCancel');
+        const modalSave = document.getElementById('modalSave');
+        const collectLogsBtn = document.getElementById('collectLogsBtn');
+        const appVersion = document.getElementById('appVersion');
+
+        // Navigation
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const viewId = item.dataset.view;
+                switchView(viewId);
+                navItems.forEach(n => n.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+
+        function switchView(viewId) {
+            views.forEach(v => v.classList.remove('active'));
+            document.getElementById(`${viewId}-view`).classList.add('active');
+
+            if (viewId === 'connections') {
+                startStatsUpdate();
+            } else {
+                stopStatsUpdate();
+            }
+        }
+
+        // Connection status update
+        async function updateConnectionStatus() {
+            try {
+                const stats = await window.vpnAPI.getConnectionStats();
+
+                if (stats.connected) {
+                    statusBadge.className = 'status-badge connected';
+                    statusBadge.querySelector('.status-icon').textContent = '✓';
+                    statusText.textContent = 'Connected';
+                    statisticsPanel.style.display = 'block';
+                    disconnectBtn.style.display = 'inline-block';
+
+                    // Update stats
+                    document.getElementById('statIP').textContent = stats.assignedIP || '-';
+                    document.getElementById('statGateway').textContent = stats.gatewayIP || '-';
+                    document.getElementById('statUptime').textContent = stats.uptime || '-';
+                    document.getElementById('statProtocol').textContent = stats.protocol || '-';
+                    document.getElementById('statBytesIn').textContent = formatBytes(stats.bytesIn);
+                    document.getElementById('statBytesOut').textContent = formatBytes(stats.bytesOut);
+                } else {
+                    statusBadge.className = 'status-badge disconnected';
+                    statusBadge.querySelector('.status-icon').textContent = '✕';
+                    statusText.textContent = 'Disconnected';
+                    statisticsPanel.style.display = 'none';
+                    disconnectBtn.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Failed to get connection status:', error);
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        }
+
+        function startStatsUpdate() {
+            updateConnectionStatus();
+            statsInterval = setInterval(updateConnectionStatus, 1000);
+        }
+
+        function stopStatsUpdate() {
+            if (statsInterval) {
+                clearInterval(statsInterval);
+                statsInterval = null;
+            }
+        }
+
+        // Disconnect button
+        disconnectBtn.addEventListener('click', async () => {
+            disconnectBtn.disabled = true;
+            disconnectBtn.textContent = 'Disconnecting...';
+            try {
+                await window.vpnAPI.disconnect();
+                updateConnectionStatus();
+            } catch (error) {
+                alert('Failed to disconnect: ' + error.message);
+            } finally {
+                disconnectBtn.disabled = false;
+                disconnectBtn.textContent = 'Disconnect';
+            }
+        });
+
+        // Sign out
+        signOutBtn.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to sign out? This will disconnect VPN and clear saved credentials.')) {
+                try {
+                    await window.vpnAPI.signOut();
+                } catch (error) {
+                    console.error('Sign out error:', error);
+                }
+            }
+        });
+
+        // Portal management
+        async function loadPortals() {
+            try {
+                portals = await window.vpnAPI.getPortals();
+                renderPortals();
+            } catch (error) {
+                console.error('Failed to load portals:', error);
+            }
+        }
+
+        function renderPortals() {
+            portalsList.innerHTML = '';
+
+            if (portals.length === 0) {
+                noPortals.style.display = 'block';
+                return;
+            }
+
+            noPortals.style.display = 'none';
+
+            portals.forEach(portal => {
+                const ip = portal.endpoint.replace('https://', '').replace(':3000', '');
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${escapeHtml(portal.name)}</td>
+                    <td>${escapeHtml(ip)}</td>
+                    <td>
+                        <div class="portal-actions">
+                            <button class="btn-edit" onclick="editPortal('${portal.id}')" title="Edit">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            </button>
+                            <button class="btn-delete" onclick="deletePortal('${portal.id}')" title="Delete">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                portalsList.appendChild(row);
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Add portal
+        addPortalBtn.addEventListener('click', () => {
+            editingPortalId = null;
+            modalTitle.textContent = 'Add Portal';
+            modalSave.textContent = 'Add';
+            portalName.value = '';
+            portalIP.value = '';
+            portalModal.classList.add('active');
+        });
+
+        // Edit portal
+        window.editPortal = function(id) {
+            const portal = portals.find(p => p.id === id);
+            if (!portal) return;
+
+            editingPortalId = id;
+            modalTitle.textContent = 'Edit Portal';
+            modalSave.textContent = 'Save';
+            portalName.value = portal.name;
+            portalIP.value = portal.endpoint.replace('https://', '').replace(':3000', '');
+            portalModal.classList.add('active');
+        };
+
+        // Delete portal
+        window.deletePortal = async function(id) {
+            if (!confirm('Are you sure you want to delete this portal?')) return;
+
+            try {
+                const result = await window.vpnAPI.removePortal(id);
+                if (result.success) {
+                    portals = result.portals;
+                    renderPortals();
+                } else {
+                    alert('Failed to delete portal: ' + result.error);
+                }
+            } catch (error) {
+                alert('Failed to delete portal: ' + error.message);
+            }
+        };
+
+        // Modal actions
+        modalCancel.addEventListener('click', () => {
+            portalModal.classList.remove('active');
+        });
+
+        modalSave.addEventListener('click', async () => {
+            const name = portalName.value.trim();
+            const ip = portalIP.value.trim();
+
+            if (!name || !ip) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            try {
+                let result;
+                if (editingPortalId) {
+                    result = await window.vpnAPI.editPortal({ id: editingPortalId, name, ip });
+                } else {
+                    result = await window.vpnAPI.addPortal({ name, ip });
+                }
+
+                if (result.success) {
+                    portals = result.portals;
+                    renderPortals();
+                    portalModal.classList.remove('active');
+                } else {
+                    alert('Failed to save portal: ' + result.error);
+                }
+            } catch (error) {
+                alert('Failed to save portal: ' + error.message);
+            }
+        });
+
+        // Close modal on outside click
+        portalModal.addEventListener('click', (e) => {
+            if (e.target === portalModal) {
+                portalModal.classList.remove('active');
+            }
+        });
+
+        // Collect logs
+        collectLogsBtn.addEventListener('click', async () => {
+            collectLogsBtn.disabled = true;
+            collectLogsBtn.textContent = 'Collecting...';
+            try {
+                const result = await window.vpnAPI.collectLogs();
+                if (result.success) {
+                    alert('Logs saved to: ' + result.filePath);
+                }
+            } catch (error) {
+                alert('Failed to collect logs: ' + error.message);
+            } finally {
+                collectLogsBtn.disabled = false;
+                collectLogsBtn.textContent = 'Collect Logs';
+            }
+        });
+
+        // Load app version
+        async function loadAppVersion() {
+            try {
+                const version = await window.vpnAPI.getAppVersion();
+                appVersion.textContent = `Version ${version}`;
+            } catch (error) {
+                console.error('Failed to get app version:', error);
+            }
+        }
+
+        // Listen for connection changes from main process
+        window.vpnAPI.onConnectionChanged((data) => {
+            updateConnectionStatus();
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPortals();
+            loadAppVersion();
+            startStatsUpdate();
+        });
+    </script>
+</body>
+</html>

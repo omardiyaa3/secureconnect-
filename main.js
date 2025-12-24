@@ -1,4 +1,4 @@
-const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage, dialog, shell } = require('electron');
+const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage, dialog, shell, safeStorage } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs').promises;
@@ -7,7 +7,22 @@ const os = require('os');
 const sudo = require('sudo-prompt');
 const VPNManager = require('./vpn');
 
-const APP_VERSION = '2.0.37';
+const APP_VERSION = '2.0.38';
+
+// Application logs for collection
+let appLogs = [];
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+console.log = (...args) => {
+    appLogs.push({ type: 'log', time: new Date().toISOString(), message: args.join(' ') });
+    if (appLogs.length > 1000) appLogs.shift(); // Keep last 1000 logs
+    originalConsoleLog.apply(console, args);
+};
+console.error = (...args) => {
+    appLogs.push({ type: 'error', time: new Date().toISOString(), message: args.join(' ') });
+    if (appLogs.length > 1000) appLogs.shift();
+    originalConsoleError.apply(console, args);
+};
 
 // Enable transparent visuals for Linux
 if (process.platform === 'linux') {
@@ -51,14 +66,70 @@ if (!gotTheLock) {
 
 let tray = null;
 let mainWindow = null;
+let settingsWindow = null;
 let vpnManager = new VPNManager();
 let isConnected = false;
 let currentPortal = null;
 let currentUser = null;
 let portals = [];
 
+// Connection tracking for statistics
+let connectionStartTime = null;
+let connectionStats = {
+    assignedIP: null,
+    gatewayIP: null,
+    bytesIn: 0,
+    bytesOut: 0,
+    protocol: 'AmneziaWG'
+};
+
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
+const CREDENTIALS_FILE = path.join(CONFIG_DIR, 'credentials.enc');
+
+// Credential storage functions using Electron safeStorage
+function saveCredentials(portalId, username, password) {
+    try {
+        if (!safeStorage.isEncryptionAvailable()) {
+            console.warn('Encryption not available, credentials will not be saved');
+            return false;
+        }
+        const data = JSON.stringify({ portalId, username, password });
+        const encrypted = safeStorage.encryptString(data);
+        fsSync.writeFileSync(CREDENTIALS_FILE, encrypted, { mode: 0o600 });
+        console.log('Credentials saved securely');
+        return true;
+    } catch (error) {
+        console.error('Failed to save credentials:', error);
+        return false;
+    }
+}
+
+function getCredentials() {
+    try {
+        if (!fsSync.existsSync(CREDENTIALS_FILE)) return null;
+        if (!safeStorage.isEncryptionAvailable()) return null;
+        const encrypted = fsSync.readFileSync(CREDENTIALS_FILE);
+        const decrypted = safeStorage.decryptString(encrypted);
+        return JSON.parse(decrypted);
+    } catch (error) {
+        console.error('Failed to get credentials:', error);
+        return null;
+    }
+}
+
+function clearCredentials() {
+    try {
+        if (fsSync.existsSync(CREDENTIALS_FILE)) {
+            fsSync.unlinkSync(CREDENTIALS_FILE);
+            console.log('Credentials cleared');
+        }
+        return true;
+    } catch (error) {
+        console.error('Failed to clear credentials:', error);
+        return false;
+    }
+}
 
 // VPN icon for menu bar - WorldPosta cloud icon
 const createVPNIcon = (connected) => {
@@ -216,6 +287,164 @@ function showWindow() {
     mainWindow.setPosition(x, y);
     mainWindow.show();
     mainWindow.focus();
+}
+
+function createSettingsWindow() {
+    if (settingsWindow) {
+        settingsWindow.focus();
+        return;
+    }
+
+    const isLinux = process.platform === 'linux';
+
+    settingsWindow = new BrowserWindow({
+        width: 700,
+        height: 500,
+        resizable: true,
+        minWidth: 600,
+        minHeight: 400,
+        frame: true,
+        transparent: false,
+        backgroundColor: isLinux ? '#f0f0f0' : '#ffffff',
+        titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false
+        }
+    });
+
+    settingsWindow.loadFile('settings.html');
+
+    settingsWindow.on('closed', () => {
+        settingsWindow = null;
+    });
+}
+
+// Get connection statistics
+async function getConnectionStats() {
+    if (!isConnected) {
+        return {
+            connected: false,
+            assignedIP: null,
+            gatewayIP: null,
+            uptime: null,
+            bytesIn: 0,
+            bytesOut: 0,
+            protocol: null
+        };
+    }
+
+    // Calculate uptime
+    let uptime = '00:00:00';
+    if (connectionStartTime) {
+        const diff = Date.now() - connectionStartTime;
+        const hours = Math.floor(diff / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        uptime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    // Try to get interface statistics
+    try {
+        const stats = await getInterfaceStats();
+        connectionStats.bytesIn = stats.bytesIn;
+        connectionStats.bytesOut = stats.bytesOut;
+    } catch (error) {
+        console.error('Failed to get interface stats:', error);
+    }
+
+    return {
+        connected: true,
+        assignedIP: connectionStats.assignedIP,
+        gatewayIP: connectionStats.gatewayIP,
+        uptime: uptime,
+        bytesIn: connectionStats.bytesIn,
+        bytesOut: connectionStats.bytesOut,
+        protocol: connectionStats.protocol
+    };
+}
+
+// Get network interface statistics
+async function getInterfaceStats() {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+
+    try {
+        if (process.platform === 'linux') {
+            // Linux: Read from /sys/class/net
+            const rxBytes = await fs.readFile('/sys/class/net/sc0/statistics/rx_bytes', 'utf8').catch(() => '0');
+            const txBytes = await fs.readFile('/sys/class/net/sc0/statistics/tx_bytes', 'utf8').catch(() => '0');
+            return { bytesIn: parseInt(rxBytes.trim()), bytesOut: parseInt(txBytes.trim()) };
+        } else if (process.platform === 'darwin') {
+            // macOS: Use netstat
+            const { stdout } = await execAsync('netstat -I utun -b 2>/dev/null || echo "0 0"');
+            const lines = stdout.split('\n').filter(l => l.includes('utun'));
+            if (lines.length > 0) {
+                const parts = lines[0].split(/\s+/);
+                return { bytesIn: parseInt(parts[6]) || 0, bytesOut: parseInt(parts[9]) || 0 };
+            }
+        } else if (process.platform === 'win32') {
+            // Windows: Use netsh or PowerShell
+            const { stdout } = await execAsync('netsh interface show interface name="SecureConnect" 2>nul');
+            // Parse output for statistics (simplified)
+            return { bytesIn: connectionStats.bytesIn, bytesOut: connectionStats.bytesOut };
+        }
+    } catch (error) {
+        console.error('Error getting interface stats:', error);
+    }
+    return { bytesIn: 0, bytesOut: 0 };
+}
+
+// Collect logs function
+async function collectLogs() {
+    const logContent = {
+        timestamp: new Date().toISOString(),
+        appVersion: APP_VERSION,
+        platform: process.platform,
+        osVersion: os.release(),
+        nodeVersion: process.version,
+        electronVersion: process.versions.electron,
+        connected: isConnected,
+        currentPortal: currentPortal ? currentPortal.name : null,
+        logs: appLogs
+    };
+
+    const { filePath } = await dialog.showSaveDialog({
+        title: 'Save Logs',
+        defaultPath: `secureconnect-logs-${Date.now()}.txt`,
+        filters: [
+            { name: 'Text Files', extensions: ['txt'] },
+            { name: 'JSON Files', extensions: ['json'] }
+        ]
+    });
+
+    if (filePath) {
+        const content = filePath.endsWith('.json')
+            ? JSON.stringify(logContent, null, 2)
+            : formatLogsAsText(logContent);
+        await fs.writeFile(filePath, content);
+        return { success: true, filePath };
+    }
+    return { success: false };
+}
+
+function formatLogsAsText(logContent) {
+    let text = '=== SecureConnect Logs ===\n\n';
+    text += `Timestamp: ${logContent.timestamp}\n`;
+    text += `App Version: ${logContent.appVersion}\n`;
+    text += `Platform: ${logContent.platform}\n`;
+    text += `OS Version: ${logContent.osVersion}\n`;
+    text += `Node Version: ${logContent.nodeVersion}\n`;
+    text += `Electron Version: ${logContent.electronVersion}\n`;
+    text += `Connected: ${logContent.connected}\n`;
+    text += `Current Portal: ${logContent.currentPortal || 'None'}\n`;
+    text += '\n=== Application Logs ===\n\n';
+    for (const log of logContent.logs) {
+        text += `[${log.time}] [${log.type.toUpperCase()}] ${log.message}\n`;
+    }
+    return text;
 }
 
 // Auto-updater event handlers
@@ -577,7 +806,22 @@ ipcMain.handle('connect', async (event) => {
     try {
         const result = await vpnManager.connect();
         isConnected = true;
+        connectionStartTime = Date.now();
+
+        // Store connection info for statistics
+        if (vpnManager.vpnConfig) {
+            connectionStats.assignedIP = vpnManager.vpnConfig.address || 'Unknown';
+            connectionStats.gatewayIP = currentPortal ? currentPortal.endpoint.replace('https://', '').replace(':3000', '') : 'Unknown';
+            connectionStats.protocol = vpnManager.vpnConfig.awg ? 'AmneziaWG' : 'WireGuard';
+        }
+
         updateTrayIcon();
+
+        // Notify settings window if open
+        if (settingsWindow) {
+            settingsWindow.webContents.send('connection-changed', { connected: true });
+        }
+
         return { success: true, data: result };
     } catch (error) {
         return { success: false, error: error.message };
@@ -589,7 +833,15 @@ ipcMain.handle('disconnect', async (event) => {
         await vpnManager.disconnect();
         isConnected = false;
         currentUser = null;
+        connectionStartTime = null;
+        connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'AmneziaWG' };
         updateTrayIcon();
+
+        // Notify settings window if open
+        if (settingsWindow) {
+            settingsWindow.webContents.send('connection-changed', { connected: false });
+        }
+
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };
@@ -607,4 +859,105 @@ ipcMain.handle('getVPNStatus', async () => {
 
 ipcMain.handle('close', () => {
     if (mainWindow) mainWindow.hide();
+});
+
+// ============ NEW IPC HANDLERS FOR SETTINGS ============
+
+// Open settings window
+ipcMain.handle('openSettings', () => {
+    createSettingsWindow();
+    return { success: true };
+});
+
+// Close settings window
+ipcMain.handle('closeSettings', () => {
+    if (settingsWindow) {
+        settingsWindow.close();
+    }
+    return { success: true };
+});
+
+// Edit portal
+ipcMain.handle('editPortal', async (event, { id, name, ip }) => {
+    try {
+        const portal = portals.find(p => p.id === id);
+        if (!portal) {
+            return { success: false, error: 'Portal not found' };
+        }
+
+        portal.name = name;
+        portal.endpoint = `https://${ip}:3000`;
+
+        await savePortals();
+        return { success: true, portals };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Get saved credentials
+ipcMain.handle('getCredentials', () => {
+    return getCredentials();
+});
+
+// Save credentials
+ipcMain.handle('saveCredentials', async (event, { portalId, username, password }) => {
+    const success = saveCredentials(portalId, username, password);
+    return { success };
+});
+
+// Clear credentials
+ipcMain.handle('clearCredentials', () => {
+    const success = clearCredentials();
+    return { success };
+});
+
+// Get connection statistics
+ipcMain.handle('getConnectionStats', async () => {
+    return await getConnectionStats();
+});
+
+// Collect logs
+ipcMain.handle('collectLogs', async () => {
+    return await collectLogs();
+});
+
+// Sign out (disconnect + clear credentials)
+ipcMain.handle('signOut', async () => {
+    try {
+        // Disconnect VPN if connected
+        if (isConnected) {
+            await vpnManager.disconnect();
+            isConnected = false;
+            connectionStartTime = null;
+            connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'AmneziaWG' };
+            updateTrayIcon();
+        }
+
+        // Clear saved credentials
+        clearCredentials();
+
+        // Clear current user
+        currentUser = null;
+
+        // Close settings window
+        if (settingsWindow) {
+            settingsWindow.close();
+        }
+
+        // Notify main window to reset form
+        if (mainWindow) {
+            mainWindow.webContents.send('reset-login-form');
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('Sign out error:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Get app version
+ipcMain.handle('getAppVersion', () => {
+    return APP_VERSION;
 });
