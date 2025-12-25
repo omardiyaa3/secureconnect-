@@ -222,7 +222,7 @@ function createWindow() {
         resizable: false,
         show: false,
         frame: false,
-        transparent: !isLinux,  // Disable transparency on Linux
+        transparent: true,  // Enable transparency on all platforms
         alwaysOnTop: true,
         skipTaskbar: true,
         hasShadow: true,
@@ -244,9 +244,9 @@ function createWindow() {
         windowOptions.transparent = true;
         windowOptions.backgroundColor = '#00000000';
     } else {
-        // Linux: Solid background (no transparency)
-        windowOptions.transparent = false;
-        windowOptions.backgroundColor = '#f0f0f0';
+        // Linux: Enable transparency for rounded corners
+        windowOptions.transparent = true;
+        windowOptions.backgroundColor = '#00000000';
     }
 
     mainWindow = new BrowserWindow(windowOptions);
@@ -377,39 +377,42 @@ async function getInterfaceStats() {
         return cachedInterfaceStats;
     }
 
+    // Get the VPN interface name from vpnManager
+    const vpnInterface = vpnManager.vpnInterface;
+    if (!vpnInterface) {
+        return cachedInterfaceStats;
+    }
+
     try {
         if (process.platform === 'linux') {
-            // Linux: Read directly from /sys/class/net/sc0 (no sudo needed)
-            const rxPath = '/sys/class/net/sc0/statistics/rx_bytes';
-            const txPath = '/sys/class/net/sc0/statistics/tx_bytes';
-            if (fs.existsSync(rxPath) && fs.existsSync(txPath)) {
-                const rx = parseInt(fs.readFileSync(rxPath, 'utf8').trim()) || 0;
-                const tx = parseInt(fs.readFileSync(txPath, 'utf8').trim()) || 0;
+            // Linux: Read directly from /sys/class/net/<interface> (no sudo needed)
+            const rxPath = `/sys/class/net/${vpnInterface}/statistics/rx_bytes`;
+            const txPath = `/sys/class/net/${vpnInterface}/statistics/tx_bytes`;
+            const fsSync = require('fs');
+            if (fsSync.existsSync(rxPath) && fsSync.existsSync(txPath)) {
+                const rx = parseInt(fsSync.readFileSync(rxPath, 'utf8').trim()) || 0;
+                const tx = parseInt(fsSync.readFileSync(txPath, 'utf8').trim()) || 0;
                 cachedInterfaceStats = { bytesIn: rx, bytesOut: tx };
                 lastStatsUpdate = now;
             }
         } else if (process.platform === 'darwin') {
-            // macOS: Use netstat for the VPN interface (no sudo needed)
+            // macOS: Use netstat for the specific VPN interface (no sudo needed)
             const { exec } = require('child_process');
             const { promisify } = require('util');
             const execAsync = promisify(exec);
             try {
-                // Find the utun interface created by WireGuard
-                const { stdout } = await execAsync('netstat -ib');
+                const { stdout } = await execAsync(`netstat -ib -I ${vpnInterface}`);
                 const lines = stdout.trim().split('\n');
                 for (const line of lines) {
-                    // Look for utun interfaces with traffic
-                    if (line.match(/^utun\d+/)) {
+                    if (line.startsWith(vpnInterface)) {
                         const parts = line.split(/\s+/);
                         // Format: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes
                         if (parts.length >= 10) {
                             const rx = parseInt(parts[6]) || 0;
                             const tx = parseInt(parts[9]) || 0;
-                            // Use the utun with traffic (likely our VPN)
-                            if (rx > cachedInterfaceStats.bytesIn) {
-                                cachedInterfaceStats = { bytesIn: rx, bytesOut: tx };
-                                lastStatsUpdate = now;
-                            }
+                            cachedInterfaceStats = { bytesIn: rx, bytesOut: tx };
+                            lastStatsUpdate = now;
+                            break;
                         }
                     }
                 }
@@ -422,7 +425,7 @@ async function getInterfaceStats() {
             const { promisify } = require('util');
             const execAsync = promisify(exec);
             try {
-                const { stdout } = await execAsync('powershell -Command "Get-NetAdapterStatistics -Name \'SecureConnect\' | Select-Object ReceivedBytes,SentBytes | ConvertTo-Json"');
+                const { stdout } = await execAsync(`powershell -Command "Get-NetAdapterStatistics -Name '${vpnInterface}' | Select-Object ReceivedBytes,SentBytes | ConvertTo-Json"`);
                 const stats = JSON.parse(stdout);
                 if (stats) {
                     cachedInterfaceStats = {
@@ -857,7 +860,7 @@ ipcMain.handle('connect', async (event) => {
         if (vpnManager.vpnConfig) {
             connectionStats.assignedIP = vpnManager.vpnConfig.address || 'Unknown';
             connectionStats.gatewayIP = currentPortal ? currentPortal.endpoint.replace('https://', '').replace(':3000', '') : 'Unknown';
-            connectionStats.protocol = vpnManager.vpnConfig.awg ? 'AmneziaWG' : 'WireGuard';
+            connectionStats.protocol = 'SSL';
         }
 
         updateTrayIcon();
@@ -882,7 +885,7 @@ ipcMain.handle('disconnect', async (event) => {
         isConnected = false;
         currentUser = null;
         connectionStartTime = null;
-        connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'AmneziaWG' };
+        connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'SSL' };
         updateTrayIcon();
 
         // Notify windows of connection change
@@ -987,7 +990,7 @@ ipcMain.handle('signOut', async () => {
             await vpnManager.disconnect();
             isConnected = false;
             connectionStartTime = null;
-            connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'AmneziaWG' };
+            connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'SSL' };
             updateTrayIcon();
         }
 

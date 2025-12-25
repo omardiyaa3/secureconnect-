@@ -71,6 +71,7 @@ class VPNManager {
 
         this.originalDNS = null;
         this.activeInterface = null;
+        this.vpnInterface = null;  // The VPN tunnel interface (utun*, sc0, etc.)
     }
 
     setEndpoint(endpoint) {
@@ -262,6 +263,41 @@ class VPNManager {
             await execAsync(`sudo "${quickPath}" up "${configFile}"`);
         }
         console.log(`SecureConnect tunnel active (DPI bypass: ${useDpiBypass})`);
+
+        // Detect the VPN interface that was created
+        await this.detectVpnInterface();
+    }
+
+    async detectVpnInterface() {
+        try {
+            if (this.platform === 'darwin') {
+                // macOS: Find the utun interface with the VPN IP
+                const { stdout } = await execAsync('ifconfig | grep -E "^utun[0-9]+:|inet " | grep -B1 "inet 10\\." | head -1');
+                const match = stdout.match(/^(utun\d+):/);
+                if (match) {
+                    this.vpnInterface = match[1];
+                    console.log(`Detected VPN interface: ${this.vpnInterface}`);
+                }
+            } else if (this.platform === 'linux') {
+                // Linux: The interface is sc0 (from config file name)
+                this.vpnInterface = 'sc0';
+                console.log(`VPN interface: ${this.vpnInterface}`);
+            } else if (this.platform === 'win32') {
+                // Windows: Interface is named SecureConnect
+                this.vpnInterface = 'SecureConnect';
+                console.log(`VPN interface: ${this.vpnInterface}`);
+            }
+        } catch (error) {
+            console.error('Failed to detect VPN interface:', error.message);
+            // Fallback to common names
+            if (this.platform === 'darwin') {
+                this.vpnInterface = 'utun0';
+            } else if (this.platform === 'linux') {
+                this.vpnInterface = 'sc0';
+            } else {
+                this.vpnInterface = 'SecureConnect';
+            }
+        }
     }
 
     async disconnect() {

@@ -484,6 +484,31 @@
             margin-bottom: 10px;
         }
 
+        /* Checkbox styling */
+        .checkbox-group {
+            margin-bottom: 12px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--muted-foreground);
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            margin-right: 8px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .checkbox-text {
+            user-select: none;
+        }
+
         /* Error message */
         .error-message {
             background: rgba(239, 68, 68, 0.1);
@@ -711,6 +736,14 @@
                     <div class="form-group">
                         <label>Password</label>
                         <input type="password" id="password" class="input-field" placeholder="Password" required>
+                    </div>
+
+                    <!-- Remember credentials checkbox -->
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="rememberCredentials" checked>
+                            <span class="checkbox-text">Remember credentials</span>
+                        </label>
                     </div>
 
                     <!-- Connect Button -->
@@ -953,15 +986,18 @@
                 const connectResult = await window.vpnAPI.connect();
                 if (!connectResult.success) throw new Error(connectResult.error);
 
-                // Save credentials after successful connection
-                try {
-                    await window.vpnAPI.saveCredentials({
-                        portalId: selectedPortalId,
-                        username: username,
-                        password: password
-                    });
-                } catch (credError) {
-                    console.error('Failed to save credentials:', credError);
+                // Save credentials after successful connection (only if checkbox is checked)
+                const rememberCredentials = document.getElementById('rememberCredentials').checked;
+                if (rememberCredentials) {
+                    try {
+                        await window.vpnAPI.saveCredentials({
+                            portalId: selectedPortalId,
+                            username: username,
+                            password: password
+                        });
+                    } catch (credError) {
+                        console.error('Failed to save credentials:', credError);
+                    }
                 }
 
                 const status = await window.vpnAPI.getConnectionStatus();
