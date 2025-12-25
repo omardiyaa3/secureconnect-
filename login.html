@@ -67,6 +67,17 @@
             overflow: hidden;
         }
 
+        /* macOS: Transparent body with vibrancy blur effect */
+        body.platform-darwin {
+            background: transparent !important;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        body.platform-darwin .glass-card {
+            height: 100%;
+        }
+
         /* Windows: Fully transparent body, card has the background */
         body.platform-win32 {
             background: transparent !important;
