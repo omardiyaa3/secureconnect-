@@ -832,8 +832,13 @@
 
         // Load saved credentials for current portal
         async function loadSavedCredentials() {
+            // Always clear fields first when switching portals
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+
             try {
                 const creds = await window.vpnAPI.getCredentials();
+                // Only fill if credentials are for this specific portal
                 if (creds && creds.portalId === selectedPortalId) {
                     document.getElementById('username').value = creds.username || '';
                     document.getElementById('password').value = creds.password || '';

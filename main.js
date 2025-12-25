@@ -365,46 +365,81 @@ async function getConnectionStats() {
     };
 }
 
-// Get network interface statistics using WireGuard tools
+// Cache for interface stats - update every 30 seconds
+let lastStatsUpdate = 0;
+let cachedInterfaceStats = { bytesIn: 0, bytesOut: 0 };
+
+// Get network interface statistics (no sudo required)
 async function getInterfaceStats() {
-    const { exec } = require('child_process');
-    const { promisify } = require('util');
-    const execAsync = promisify(exec);
+    const now = Date.now();
+    // Only update stats every 30 seconds
+    if (now - lastStatsUpdate < 30000 && cachedInterfaceStats.bytesIn > 0) {
+        return cachedInterfaceStats;
+    }
 
     try {
-        // Use secureconnect-ctl or wg show to get transfer stats
-        let wgCmd;
-        if (process.platform === 'darwin') {
-            const ctlPath = path.join(__dirname, 'resources', 'bin', 'darwin', `secureconnect-ctl-${process.arch === 'arm64' ? 'arm64' : 'amd64'}`);
-            wgCmd = `sudo "${ctlPath}" show sc0 transfer 2>/dev/null || sudo wg show sc0 transfer 2>/dev/null`;
-        } else if (process.platform === 'linux') {
-            const ctlPath = path.join(__dirname, 'resources', 'bin', 'linux', 'secureconnect-ctl');
-            wgCmd = `sudo "${ctlPath}" show sc0 transfer 2>/dev/null || sudo wg show sc0 transfer 2>/dev/null || sudo awg show sc0 transfer 2>/dev/null`;
-        } else if (process.platform === 'win32') {
-            // Windows - try to get stats from WireGuard
-            wgCmd = 'wg show sc0 transfer 2>nul';
-        }
-
-        if (wgCmd) {
-            const { stdout } = await execAsync(wgCmd);
-            // Output format: <peer-pubkey>\t<rx-bytes>\t<tx-bytes>
-            const lines = stdout.trim().split('\n');
-            let totalRx = 0, totalTx = 0;
-            for (const line of lines) {
-                const parts = line.split('\t');
-                if (parts.length >= 3) {
-                    totalRx += parseInt(parts[1]) || 0;
-                    totalTx += parseInt(parts[2]) || 0;
-                }
+        if (process.platform === 'linux') {
+            // Linux: Read directly from /sys/class/net/sc0 (no sudo needed)
+            const rxPath = '/sys/class/net/sc0/statistics/rx_bytes';
+            const txPath = '/sys/class/net/sc0/statistics/tx_bytes';
+            if (fs.existsSync(rxPath) && fs.existsSync(txPath)) {
+                const rx = parseInt(fs.readFileSync(rxPath, 'utf8').trim()) || 0;
+                const tx = parseInt(fs.readFileSync(txPath, 'utf8').trim()) || 0;
+                cachedInterfaceStats = { bytesIn: rx, bytesOut: tx };
+                lastStatsUpdate = now;
             }
-            if (totalRx > 0 || totalTx > 0) {
-                return { bytesIn: totalRx, bytesOut: totalTx };
+        } else if (process.platform === 'darwin') {
+            // macOS: Use netstat for the VPN interface (no sudo needed)
+            const { exec } = require('child_process');
+            const { promisify } = require('util');
+            const execAsync = promisify(exec);
+            try {
+                // Find the utun interface created by WireGuard
+                const { stdout } = await execAsync('netstat -ib');
+                const lines = stdout.trim().split('\n');
+                for (const line of lines) {
+                    // Look for utun interfaces with traffic
+                    if (line.match(/^utun\d+/)) {
+                        const parts = line.split(/\s+/);
+                        // Format: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes
+                        if (parts.length >= 10) {
+                            const rx = parseInt(parts[6]) || 0;
+                            const tx = parseInt(parts[9]) || 0;
+                            // Use the utun with traffic (likely our VPN)
+                            if (rx > cachedInterfaceStats.bytesIn) {
+                                cachedInterfaceStats = { bytesIn: rx, bytesOut: tx };
+                                lastStatsUpdate = now;
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('macOS stats error:', e.message);
+            }
+        } else if (process.platform === 'win32') {
+            // Windows: Use PowerShell to get interface stats (no admin needed)
+            const { exec } = require('child_process');
+            const { promisify } = require('util');
+            const execAsync = promisify(exec);
+            try {
+                const { stdout } = await execAsync('powershell -Command "Get-NetAdapterStatistics -Name \'SecureConnect\' | Select-Object ReceivedBytes,SentBytes | ConvertTo-Json"');
+                const stats = JSON.parse(stdout);
+                if (stats) {
+                    cachedInterfaceStats = {
+                        bytesIn: stats.ReceivedBytes || 0,
+                        bytesOut: stats.SentBytes || 0
+                    };
+                    lastStatsUpdate = now;
+                }
+            } catch (e) {
+                // Interface might not exist or different name
             }
         }
     } catch (error) {
-        console.error('Error getting WireGuard stats:', error.message);
+        console.error('Error getting interface stats:', error.message);
     }
-    return { bytesIn: 0, bytesOut: 0 };
+
+    return cachedInterfaceStats;
 }
 
 // Collect logs function
