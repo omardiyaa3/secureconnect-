@@ -48,5 +48,8 @@ contextBridge.exposeInMainWorld('vpnAPI', {
     },
     onResetLoginForm: (callback) => {
         ipcRenderer.on('reset-login-form', (event) => callback());
+    },
+    onPortalsChanged: (callback) => {
+        ipcRenderer.on('portals-changed', (event) => callback());
     }
 });

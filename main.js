@@ -80,7 +80,7 @@ let connectionStats = {
     gatewayIP: null,
     bytesIn: 0,
     bytesOut: 0,
-    protocol: 'AmneziaWG'
+    protocol: 'SSL'
 };
 
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
@@ -365,34 +365,44 @@ async function getConnectionStats() {
     };
 }
 
-// Get network interface statistics
+// Get network interface statistics using WireGuard tools
 async function getInterfaceStats() {
     const { exec } = require('child_process');
     const { promisify } = require('util');
     const execAsync = promisify(exec);
 
     try {
-        if (process.platform === 'linux') {
-            // Linux: Read from /sys/class/net
-            const rxBytes = await fs.readFile('/sys/class/net/sc0/statistics/rx_bytes', 'utf8').catch(() => '0');
-            const txBytes = await fs.readFile('/sys/class/net/sc0/statistics/tx_bytes', 'utf8').catch(() => '0');
-            return { bytesIn: parseInt(rxBytes.trim()), bytesOut: parseInt(txBytes.trim()) };
-        } else if (process.platform === 'darwin') {
-            // macOS: Use netstat
-            const { stdout } = await execAsync('netstat -I utun -b 2>/dev/null || echo "0 0"');
-            const lines = stdout.split('\n').filter(l => l.includes('utun'));
-            if (lines.length > 0) {
-                const parts = lines[0].split(/\s+/);
-                return { bytesIn: parseInt(parts[6]) || 0, bytesOut: parseInt(parts[9]) || 0 };
-            }
+        // Use secureconnect-ctl or wg show to get transfer stats
+        let wgCmd;
+        if (process.platform === 'darwin') {
+            const ctlPath = path.join(__dirname, 'resources', 'bin', 'darwin', `secureconnect-ctl-${process.arch === 'arm64' ? 'arm64' : 'amd64'}`);
+            wgCmd = `sudo "${ctlPath}" show sc0 transfer 2>/dev/null || sudo wg show sc0 transfer 2>/dev/null`;
+        } else if (process.platform === 'linux') {
+            const ctlPath = path.join(__dirname, 'resources', 'bin', 'linux', 'secureconnect-ctl');
+            wgCmd = `sudo "${ctlPath}" show sc0 transfer 2>/dev/null || sudo wg show sc0 transfer 2>/dev/null || sudo awg show sc0 transfer 2>/dev/null`;
         } else if (process.platform === 'win32') {
-            // Windows: Use netsh or PowerShell
-            const { stdout } = await execAsync('netsh interface show interface name="SecureConnect" 2>nul');
-            // Parse output for statistics (simplified)
-            return { bytesIn: connectionStats.bytesIn, bytesOut: connectionStats.bytesOut };
+            // Windows - try to get stats from WireGuard
+            wgCmd = 'wg show sc0 transfer 2>nul';
+        }
+
+        if (wgCmd) {
+            const { stdout } = await execAsync(wgCmd);
+            // Output format: <peer-pubkey>\t<rx-bytes>\t<tx-bytes>
+            const lines = stdout.trim().split('\n');
+            let totalRx = 0, totalTx = 0;
+            for (const line of lines) {
+                const parts = line.split('\t');
+                if (parts.length >= 3) {
+                    totalRx += parseInt(parts[1]) || 0;
+                    totalTx += parseInt(parts[2]) || 0;
+                }
+            }
+            if (totalRx > 0 || totalTx > 0) {
+                return { bytesIn: totalRx, bytesOut: totalTx };
+            }
         }
     } catch (error) {
-        console.error('Error getting interface stats:', error);
+        console.error('Error getting WireGuard stats:', error.message);
     }
     return { bytesIn: 0, bytesOut: 0 };
 }
@@ -817,9 +827,12 @@ ipcMain.handle('connect', async (event) => {
 
         updateTrayIcon();
 
-        // Notify settings window if open
-        if (settingsWindow) {
+        // Notify windows of connection change
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
             settingsWindow.webContents.send('connection-changed', { connected: true });
+        }
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('connection-changed', { connected: true });
         }
 
         return { success: true, data: result };
@@ -837,9 +850,12 @@ ipcMain.handle('disconnect', async (event) => {
         connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'AmneziaWG' };
         updateTrayIcon();
 
-        // Notify settings window if open
-        if (settingsWindow) {
+        // Notify windows of connection change
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
             settingsWindow.webContents.send('connection-changed', { connected: false });
+        }
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('connection-changed', { connected: false });
         }
 
         return { success: true };
@@ -889,6 +905,12 @@ ipcMain.handle('editPortal', async (event, { id, name, ip }) => {
         portal.endpoint = `https://${ip}:3000`;
 
         await savePortals();
+
+        // Notify main window to refresh portals list
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('portals-changed');
+        }
+
         return { success: true, portals };
     } catch (error) {
         return { success: false, error: error.message };

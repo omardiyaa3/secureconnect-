@@ -115,9 +115,9 @@
             }
         }
 
-        /* Linux: Plain solid backgrounds (no glassy effect) */
+        /* Linux: Transparent body with solid card */
         body.platform-linux {
-            background: #f0f0f0 !important;
+            background: transparent !important;
         }
 
         body.platform-linux .glass-card {
@@ -160,7 +160,7 @@
         /* Linux Dark Mode */
         @media (prefers-color-scheme: dark) {
             body.platform-linux {
-                background: #252525 !important;
+                background: transparent !important;
             }
 
             body.platform-linux .glass-card {
@@ -806,6 +806,23 @@
             window.vpnAPI.onResetLoginForm(() => {
                 resetLoginForm();
             });
+
+            // Listen for portals-changed event (when portals are edited in settings)
+            window.vpnAPI.onPortalsChanged(() => {
+                loadPortals();
+            });
+
+            // Listen for connection-changed event (when VPN is connected/disconnected from settings)
+            window.vpnAPI.onConnectionChanged(async (data) => {
+                if (data.connected) {
+                    const status = await window.vpnAPI.getConnectionStatus();
+                    await showConnectedView(status);
+                } else {
+                    // Show login view when disconnected
+                    connectedView.classList.add('hidden');
+                    loginView.classList.remove('hidden');
+                }
+            });
         }
 
         // Open settings window
@@ -861,9 +878,30 @@
                 dropdownMenu.appendChild(item);
             });
 
+            // Try to select a portal in this priority:
+            // 1. Current portal if set
+            // 2. Portal from saved credentials
+            // 3. First portal in list
             const currentPortal = await window.vpnAPI.getCurrentPortal();
             if (currentPortal) {
-                selectPortal(currentPortal, false);
+                await selectPortal(currentPortal, false);
+            } else {
+                // Try to get portal from saved credentials
+                try {
+                    const creds = await window.vpnAPI.getCredentials();
+                    if (creds && creds.portalId) {
+                        const savedPortal = portals.find(p => p.id === creds.portalId);
+                        if (savedPortal) {
+                            await selectPortal(savedPortal, true);
+                            return;
+                        }
+                    }
+                } catch (e) {}
+
+                // Default to first portal
+                if (portals.length > 0) {
+                    await selectPortal(portals[0], true);
+                }
             }
         }
 
