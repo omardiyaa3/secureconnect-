@@ -778,6 +778,12 @@ ipcMain.handle('removePortal', async (event, portalId) => {
         }
 
         await savePortals();
+
+        // Notify main window to refresh portals list
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('portals-changed');
+        }
+
         return { success: true, portals };
     } catch (error) {
         return { success: false, error: error.message };
@@ -809,6 +815,12 @@ ipcMain.handle('addPortal', async (event, data) => {
         });
 
         await savePortals();
+
+        // Notify main window to refresh portals list
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('portals-changed');
+        }
+
         return { success: true, portals };
     } catch (error) {
         return { success: false, error: error.message };
