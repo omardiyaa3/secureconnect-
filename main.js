@@ -954,6 +954,13 @@ ipcMain.handle('editPortal', async (event, { id, name, ip }) => {
         portal.name = name;
         portal.endpoint = `https://${ip}:3000`;
 
+        // If this is the current portal, update the VPN manager endpoint
+        if (currentPortal && currentPortal.id === id) {
+            currentPortal.name = name;
+            currentPortal.endpoint = portal.endpoint;
+            vpnManager.setEndpoint(portal.endpoint);
+        }
+
         await savePortals();
 
         // Notify main window to refresh portals list
