@@ -202,7 +202,7 @@ jobs:
           pkgutil --check-signature "$PKG_FILE"
 
       - name: Notarize PKG
-        timeout-minutes: 30
+        timeout-minutes: 90
         run: |
           echo "=== Finding PKG file ==="
           PKG_FILE=$(find dist -name "*.pkg" | head -1)
@@ -215,7 +215,7 @@ jobs:
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait \
-            --timeout 20m \
+            --timeout 60m \
             --output-format json 2>&1) || true
 
           echo "$SUBMIT_OUTPUT"
