@@ -155,6 +155,29 @@ jobs:
       - name: Build macOS installer (without notarization)
         run: npm run build:mac
 
+      - name: Sign PKG with Developer ID Installer
+        run: |
+          echo "=== Finding PKG file ==="
+          PKG_FILE=$(find dist -name "*.pkg" | head -1)
+          echo "Original PKG: $PKG_FILE"
+
+          echo ""
+          echo "=== Available signing identities ==="
+          security find-identity -v -p basic
+
+          echo ""
+          echo "=== Signing PKG with Developer ID Installer ==="
+          SIGNED_PKG="${PKG_FILE%.pkg}-signed.pkg"
+          productsign --sign "Developer ID Installer: WORLDPOSTA CLOUD SERVICE & DATACENTERS PROVIDERS CO. L.L.C (KK574HP56Q)" \
+            "$PKG_FILE" "$SIGNED_PKG"
+
+          # Replace original with signed
+          mv "$SIGNED_PKG" "$PKG_FILE"
+
+          echo ""
+          echo "=== Verifying PKG signature ==="
+          pkgutil --check-signature "$PKG_FILE"
+
       - name: Notarize PKG
         timeout-minutes: 30
         run: |
