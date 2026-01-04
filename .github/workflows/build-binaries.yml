@@ -164,13 +164,35 @@ jobs:
 
           echo ""
           echo "=== Submitting to Apple for notarization ==="
-          xcrun notarytool submit "$PKG_FILE" \
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "$PKG_FILE" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait \
             --timeout 20m \
-            --verbose
+            --output-format json 2>&1) || true
+
+          echo "$SUBMIT_OUTPUT"
+
+          # Extract submission ID
+          SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*: *"\([^"]*\)".*/\1/')
+          echo "Submission ID: $SUBMISSION_ID"
+
+          # Check status
+          STATUS=$(echo "$SUBMIT_OUTPUT" | grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' | tail -1 | sed 's/.*: *"\([^"]*\)".*/\1/')
+          echo "Status: $STATUS"
+
+          if [ "$STATUS" = "Invalid" ] || [ "$STATUS" = "Rejected" ]; then
+            echo ""
+            echo "=== NOTARIZATION FAILED - Fetching rejection log ==="
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              notarization-log.json
+            cat notarization-log.json
+            exit 1
+          fi
 
           echo ""
           echo "=== Stapling notarization ticket ==="
