@@ -147,7 +147,10 @@ jobs:
           if [ -n "$CERTIFICATE_BASE64" ]; then
             echo "=== Importing Application certificate ==="
             echo "$CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/app.p12
-            security import $RUNNER_TEMP/app.p12 -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign
+            security import $RUNNER_TEMP/app.p12 -P "${CERTIFICATE_PASSWORD}" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign || {
+              echo "Failed to import. Trying without -A flag..."
+              security import $RUNNER_TEMP/app.p12 -P "${CERTIFICATE_PASSWORD}" -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign
+            }
             rm $RUNNER_TEMP/app.p12
           fi
 
@@ -155,7 +158,10 @@ jobs:
           if [ -n "$INSTALLER_CERTIFICATE_BASE64" ]; then
             echo "=== Importing Installer certificate ==="
             echo "$INSTALLER_CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/installer.p12
-            security import $RUNNER_TEMP/installer.p12 -P "$INSTALLER_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign
+            security import $RUNNER_TEMP/installer.p12 -P "${INSTALLER_CERTIFICATE_PASSWORD}" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign || {
+              echo "Failed to import. Trying without -A flag..."
+              security import $RUNNER_TEMP/installer.p12 -P "${INSTALLER_CERTIFICATE_PASSWORD}" -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign
+            }
             rm $RUNNER_TEMP/installer.p12
           fi
 
