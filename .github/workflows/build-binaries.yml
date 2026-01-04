@@ -144,13 +144,27 @@ jobs:
           # Import certificate if provided
           if [ -n "$CERTIFICATE_BASE64" ]; then
             echo "$CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/certificate.p12
-            security import $RUNNER_TEMP/certificate.p12 -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+
+            echo "=== Checking P12 contents ==="
+            openssl pkcs12 -in $RUNNER_TEMP/certificate.p12 -passin pass:"$CERTIFICATE_PASSWORD" -nokeys -legacy 2>/dev/null | grep -E "subject|issuer" || echo "Could not parse with openssl"
+
+            echo ""
+            echo "=== Importing certificate ==="
+            security import $RUNNER_TEMP/certificate.p12 -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign
             rm $RUNNER_TEMP/certificate.p12
           fi
 
           # Add keychain to search list
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo ""
+          echo "=== All identities in keychain ==="
+          security find-identity -v "$KEYCHAIN_PATH"
+
+          echo ""
+          echo "=== Codesigning identities ==="
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
       - name: Build macOS installer (without notarization)
         run: npm run build:mac
