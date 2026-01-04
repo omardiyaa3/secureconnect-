@@ -155,6 +155,8 @@ jobs:
           fi
 
           # Import Installer certificate
+          echo "=== Checking Installer certificate secret ==="
+          echo "INSTALLER_CERTIFICATE_BASE64 length: ${#INSTALLER_CERTIFICATE_BASE64}"
           if [ -n "$INSTALLER_CERTIFICATE_BASE64" ]; then
             echo "=== Importing Installer certificate ==="
             echo "$INSTALLER_CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/installer.p12
