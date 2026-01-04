@@ -175,8 +175,12 @@ jobs:
           echo "=== All identities in keychain ==="
           security find-identity -v "$KEYCHAIN_PATH"
 
-      - name: Build macOS installer (without notarization)
+      - name: Build macOS installer
         run: npm run build:mac
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Sign PKG with Developer ID Installer
         run: |

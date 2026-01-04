@@ -68,7 +68,9 @@
       "extendInfo": {
         "LSUIElement": false
       },
-      "notarize": false
+      "notarize": {
+        "teamId": "KK574HP56Q"
+      }
     },
     "pkg": {
       "scripts": "installer/mac",
