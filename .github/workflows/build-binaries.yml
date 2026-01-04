@@ -240,6 +240,23 @@ jobs:
             exit 1
           fi
 
+          # If timed out, check current status
+          if [ -z "$STATUS" ] || [ "$STATUS" != "Accepted" ]; then
+            echo ""
+            echo "=== Checking submission status ==="
+            xcrun notarytool info "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID"
+
+            echo ""
+            echo "=== Recent notarization history ==="
+            xcrun notarytool history \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" | head -20
+          fi
+
           echo ""
           echo "=== Stapling notarization ticket ==="
           xcrun stapler staple "$PKG_FILE"
