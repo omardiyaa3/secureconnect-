@@ -152,23 +152,35 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-      - name: Test notarization credentials
+      - name: Build macOS installer (without notarization)
+        run: npm run build:mac
+
+      - name: Notarize PKG
+        timeout-minutes: 30
         run: |
-          echo "Testing Apple notarization credentials..."
-          xcrun notarytool history \
+          echo "=== Finding PKG file ==="
+          PKG_FILE=$(find dist -name "*.pkg" | head -1)
+          echo "PKG file: $PKG_FILE"
+
+          echo ""
+          echo "=== Submitting to Apple for notarization ==="
+          xcrun notarytool submit "$PKG_FILE" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" 2>&1 || echo "Notarytool test failed - check credentials"
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --timeout 20m \
+            --verbose
 
-      - name: Build macOS installer
-        run: npm run build:mac
+          echo ""
+          echo "=== Stapling notarization ticket ==="
+          xcrun stapler staple "$PKG_FILE"
+
+          echo ""
+          echo "=== Verifying notarization ==="
+          xcrun stapler validate "$PKG_FILE"
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
