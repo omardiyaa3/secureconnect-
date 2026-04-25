@@ -1,0 +1,8 @@
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ARCH=$(uname -m)
+if [ "$ARCH" = "arm64" ]; then
+    exec "$SCRIPT_DIR/secureconnect-go-arm64" "$@"
+else
+    exec "$SCRIPT_DIR/secureconnect-go-amd64" "$@"
+fi

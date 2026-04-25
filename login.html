@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Super Connect</title>
+    <style>
+        /* Light mode (default) */
+        :root {
+            --primary: #679a41;
+            --primary-hover: #5a8738;
+            --primary-foreground: #ffffff;
+            --success: #22c55e;
+            --destructive: #ef4444;
+            --destructive-hover: #dc2626;
+            --destructive-foreground: #ffffff;
+            --foreground: #1e293b;
+            --card-bg: rgba(255, 255, 255, 0.15);
+            --muted-foreground: #64748b;
+            --border: rgba(0, 0, 0, 0.2);
+            --secondary: rgba(0, 0, 0, 0.08);
+            --secondary-hover: rgba(0, 0, 0, 0.12);
+            --input-bg: rgba(255, 255, 255, 0.5);
+            --input-border: rgba(0, 0, 0, 0.25);
+            --dropdown-bg: rgba(255, 255, 255, 0.95);
+            --status-card-bg: rgba(255, 255, 255, 0.3);
+            --modal-backdrop: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Dark mode */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --foreground: #f8fafc;
+                --card-bg: rgba(0, 0, 0, 0.15);
+                --muted-foreground: #94a3b8;
+                --border: rgba(255, 255, 255, 0.15);
+                --secondary: rgba(255, 255, 255, 0.1);
+                --secondary-hover: rgba(255, 255, 255, 0.2);
+                --input-bg: rgba(255, 255, 255, 0.1);
+                --input-border: rgba(255, 255, 255, 0.2);
+                --dropdown-bg: rgba(30, 30, 30, 0.8);
+                --status-card-bg: rgba(255, 255, 255, 0.1);
+                --modal-backdrop: rgba(0, 0, 0, 0.4);
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            background: transparent !important;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            overflow: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            color: var(--foreground);
+            width: 300px;
+            height: 380px;
+            overflow: hidden;
+        }
+
+        /* macOS: Transparent body with vibrancy blur effect */
+        body.platform-darwin {
+            background: transparent !important;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        body.platform-darwin .glass-card {
+            height: 100%;
+        }
+
+        /* Windows: Fully transparent body, card has the background */
+        body.platform-win32 {
+            background: transparent !important;
+        }
+
+        /* Glass card effect - transparent to show native vibrancy/blur */
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            min-height: 360px;
+            border-radius: 20px;
+        }
+
+        /* Windows: Light frosted card with full background */
+        body.platform-win32 .glass-card {
+            background: rgba(235, 240, 248, 0.97);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Windows: Light mode inputs */
+        body.platform-win32 .input-field,
+        body.platform-win32 .dropdown-button {
+            background: rgba(255, 255, 255, 0.7);
+            border-color: rgba(0, 0, 0, 0.15);
+        }
+
+        /* Windows: Header line */
+        body.platform-win32 .header {
+            border-bottom-color: rgba(0, 0, 0, 0.1);
+        }
+
+        /* Windows Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            body.platform-win32 .glass-card {
+                background: rgba(30, 41, 59, 0.97);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            }
+
+            body.platform-win32 .input-field,
+            body.platform-win32 .dropdown-button {
+                background: rgba(255, 255, 255, 0.1);
+                border-color: rgba(255, 255, 255, 0.2);
+            }
+
+            body.platform-win32 .header {
+                border-bottom-color: rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        /* Linux: Transparent body with solid card */
+        body.platform-linux {
+            background: transparent !important;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        body.platform-linux .glass-card {
+            background: #f0f0f0;
+            border: 1px solid #d0d0d0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            height: 100%;
+        }
+
+        body.platform-linux .input-field,
+        body.platform-linux .dropdown-button {
+            background: #ffffff;
+            border-color: #c0c0c0;
+        }
+
+        body.platform-linux .dropdown-menu {
+            background: #ffffff;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        body.platform-linux .header {
+            border-bottom-color: #c0c0c0;
+        }
+
+        body.platform-linux .status-card {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        body.platform-linux .modal {
+            background: #ffffff;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        body.platform-linux .modal-backdrop {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        /* Linux Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            body.platform-linux {
+                background: transparent !important;
+                border-radius: 20px;
+                overflow: hidden;
+            }
+
+            body.platform-linux .glass-card {
+                background: #252525;
+                border: 1px solid #404040;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                height: 100%;
+            }
+
+            body.platform-linux .input-field,
+            body.platform-linux .dropdown-button {
+                background: #333333;
+                border-color: #505050;
+            }
+
+            body.platform-linux .dropdown-menu {
+                background: #333333;
+            }
+
+            body.platform-linux .header {
+                border-bottom-color: #404040;
+            }
+
+            body.platform-linux .status-card {
+                background: rgba(255, 255, 255, 0.08);
+            }
+
+            body.platform-linux .modal {
+                background: #333333;
+            }
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            margin: 0 10px;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .header {
+                border-bottom-color: #f8fafc;
+            }
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .logo-icon {
+            width: 20px;
+            height: 20px;
+            color: var(--primary);
+        }
+
+        .brand {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .brand-name {
+            font-weight: 600;
+            color: var(--foreground);
+            font-size: 14px;
+        }
+
+        .brand-product {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
+        .header-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--foreground);
+            letter-spacing: 0.3px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--muted-foreground);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .close-btn:hover {
+            background: var(--secondary);
+        }
+
+        .close-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .settings-btn {
+            background: none;
+            border: none;
+            color: var(--muted-foreground);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .settings-btn:hover {
+            background: var(--secondary);
+            color: var(--foreground);
+        }
+
+        .settings-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Container */
+        .container {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        /* Form elements */
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--foreground);
+            margin-bottom: 4px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--input-bg);
+            color: var(--foreground);
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .input-field::placeholder {
+            color: var(--muted-foreground);
+        }
+
+        /* Custom dropdown */
+        .dropdown-container {
+            position: relative;
+        }
+
+        .dropdown-button {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--input-bg);
+            color: var(--foreground);
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.2s;
+        }
+
+        .dropdown-button:hover {
+            border-color: var(--primary);
+        }
+
+        .dropdown-button .placeholder {
+            color: var(--muted-foreground);
+        }
+
+        .dropdown-button svg {
+            width: 16px;
+            height: 16px;
+            color: var(--muted-foreground);
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: var(--dropdown-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            z-index: 50;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .dropdown-menu.open {
+            display: block;
+        }
+
+        .dropdown-item {
+            width: 100%;
+            padding: 8px 10px;
+            text-align: left;
+            background: none;
+            border: none;
+            color: var(--foreground);
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: var(--secondary);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--primary-foreground);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: var(--foreground);
+            border: 1px solid var(--input-border);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--secondary-hover);
+        }
+
+        .btn-danger {
+            background: var(--destructive);
+            color: var(--destructive-foreground);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: var(--destructive-hover);
+        }
+
+        .btn-outline-danger {
+            background: transparent;
+            color: var(--destructive);
+            border: 1px solid var(--destructive);
+        }
+
+        .btn-outline-danger:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-full {
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        /* Portal actions */
+        .portal-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .portal-actions .btn {
+            flex: 1;
+        }
+
+        /* Form group */
+        .form-group {
+            margin-bottom: 10px;
+        }
+
+        /* Checkbox styling */
+        .checkbox-group {
+            margin-bottom: 12px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--muted-foreground);
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            margin-right: 8px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .checkbox-text {
+            user-select: none;
+        }
+
+        /* Error message */
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--destructive);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        /* No portal view */
+        .no-portal-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 24px;
+            flex: 1;
+        }
+
+        .no-portal-view p {
+            color: var(--muted-foreground);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        /* Connected view */
+        .connected-view {
+            padding: 16px;
+        }
+
+        .signal-container {
+            display: flex;
+            justify-content: center;
+            padding: 16px 0;
+        }
+
+        .signal-icon {
+            width: 64px;
+            height: 64px;
+            color: var(--success);
+            animation: pulse-signal 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-signal {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.05); }
+        }
+
+        .status-card {
+            background: var(--status-card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .status-header svg {
+            width: 20px;
+            height: 20px;
+            color: var(--success);
+        }
+
+        .status-header span {
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .status-info {
+            font-size: 14px;
+        }
+
+        .status-info p {
+            margin: 6px 0;
+            color: var(--foreground);
+        }
+
+        .status-info .label {
+            color: var(--muted-foreground);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--modal-backdrop);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        .modal {
+            position: relative;
+            background: var(--dropdown-bg);
+            border-radius: 12px;
+            padding: 16px;
+            width: calc(100% - 40px);
+            max-width: 280px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .modal h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--foreground);
+            margin-bottom: 12px;
+        }
+
+        .modal .form-group {
+            margin-bottom: 12px;
+        }
+
+        .modal .input-field {
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+
+        .modal label {
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .modal-buttons .btn {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        /* Animation */
+        .animate-fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="glass-card" style="overflow: hidden;">
+        <!-- Header -->
+        <div class="header">
+            <!-- WorldPosta Logo -->
+            <img src="data:image/png;base64,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" alt="WorldPosta" style="height: 28px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span class="header-title">Secure Connect</span>
+                <button class="settings-btn" onclick="openSettings()" title="Settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- No portals view -->
+            <div id="noPortalView" class="no-portal-view animate-fade-in">
+                <p>No portals configured</p>
+                <button class="btn btn-secondary btn-full" onclick="addPortal()">Add Portal</button>
+            </div>
+
+            <!-- Login view -->
+            <div id="loginView" class="hidden animate-fade-in">
+                <!-- Portal Selection -->
+                <div class="form-group">
+                    <label>Portal</label>
+                    <div class="dropdown-container">
+                        <button type="button" class="dropdown-button" id="dropdownButton" onclick="toggleDropdown()">
+                            <span id="selectedPortalName" class="placeholder">Select a portal</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu" id="dropdownMenu"></div>
+                    </div>
+                </div>
+
+
+                <div id="errorMessage" class="error-message"></div>
+
+                <form id="loginForm" style="margin-top: 16px;">
+                    <!-- Username -->
+                    <div class="form-group">
+                        <label>User name</label>
+                        <input type="text" id="username" class="input-field" placeholder="Username" required>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="password" class="input-field" placeholder="Password" required>
+                    </div>
+
+                    <!-- Remember credentials checkbox -->
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="rememberCredentials" checked>
+                            <span class="checkbox-text">Remember credentials</span>
+                        </label>
+                    </div>
+
+                    <!-- Connect Button -->
+                    <button type="submit" id="connectBtn" class="btn btn-primary btn-full">Connect</button>
+                </form>
+            </div>
+
+            <!-- Connected view -->
+            <div id="connectedView" class="hidden connected-view animate-fade-in">
+                <!-- Signal Icon -->
+                <div class="signal-container">
+                    <svg class="signal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                        <line x1="12" y1="20" x2="12.01" y2="20"/>
+                    </svg>
+                </div>
+
+                <!-- Status Card -->
+                <div class="status-card">
+                    <div class="status-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Connected</span>
+                    </div>
+                    <div class="status-info">
+                        <p><span class="label">Portal:</span> <span id="connectedPortal">-</span></p>
+                        <p><span class="label">User:</span> <span id="connectedUser">-</span></p>
+                        <p><span class="label">IP:</span> <span id="connectedIP">-</span></p>
+                    </div>
+                </div>
+
+                <!-- Disconnect Button -->
+                <button class="btn btn-danger btn-full" onclick="disconnect()">Disconnect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Portal Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-backdrop" onclick="closeModal()"></div>
+        <div class="modal animate-fade-in">
+            <h2>Add Portal</h2>
+            <div class="form-group">
+                <label>Portal name</label>
+                <input type="text" id="modalPortalName" class="input-field" placeholder="Your VPN Server" autofocus>
+            </div>
+            <div class="form-group">
+                <label>Server IP Address</label>
+                <input type="text" id="modalPortalIP" class="input-field" placeholder="192.168.1.1">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitPortal()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const noPortalView = document.getElementById('noPortalView');
+        const loginView = document.getElementById('loginView');
+        const connectedView = document.getElementById('connectedView');
+        const loginForm = document.getElementById('loginForm');
+        const errorMessage = document.getElementById('errorMessage');
+        const connectBtn = document.getElementById('connectBtn');
+        const dropdownButton = document.getElementById('dropdownButton');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        const selectedPortalName = document.getElementById('selectedPortalName');
+
+        let portals = [];
+        let selectedPortalId = null;
+
+        // Initialize
+        async function init() {
+            // Add platform class for platform-specific styling
+            const platform = navigator.userAgent.includes('Windows') ? 'win32' :
+                            navigator.userAgent.includes('Mac') ? 'darwin' : 'linux';
+            document.body.classList.add('platform-' + platform);
+
+            await loadPortals();
+            await checkConnectionStatus();
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.dropdown-container')) {
+                    dropdownMenu.classList.remove('open');
+                }
+            });
+
+            // Listen for reset-login-form event from main process (sign out)
+            window.vpnAPI.onResetLoginForm(() => {
+                resetLoginForm();
+            });
+
+            // Listen for portals-changed event (when portals are edited in settings)
+            window.vpnAPI.onPortalsChanged(() => {
+                loadPortals();
+            });
+
+            // Listen for connection-changed event (when VPN is connected/disconnected from settings)
+            window.vpnAPI.onConnectionChanged(async (data) => {
+                if (data.connected) {
+                    const status = await window.vpnAPI.getConnectionStatus();
+                    await showConnectedView(status);
+                } else {
+                    // Show login view when disconnected and reset button state
+                    connectedView.classList.add('hidden');
+                    loginView.classList.remove('hidden');
+                    connectBtn.disabled = false;
+                    connectBtn.textContent = 'Connect';
+                    errorMessage.style.display = 'none';
+                }
+            });
+        }
+
+        // Open settings window
+        function openSettings() {
+            window.vpnAPI.openSettings();
+        }
+
+        // Load saved credentials for current portal
+        async function loadSavedCredentials() {
+            // Always clear fields first when switching portals
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+
+            try {
+                const creds = await window.vpnAPI.getCredentials();
+                // Only fill if credentials are for this specific portal
+                if (creds && creds.portalId === selectedPortalId) {
+                    document.getElementById('username').value = creds.username || '';
+                    document.getElementById('password').value = creds.password || '';
+                }
+            } catch (error) {
+                console.error('Failed to load credentials:', error);
+            }
+        }
+
+        // Reset login form (called on sign out)
+        function resetLoginForm() {
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            connectBtn.disabled = false;
+            connectBtn.textContent = 'Connect';
+            errorMessage.style.display = 'none';
+        }
+
+        function toggleDropdown() {
+            dropdownMenu.classList.toggle('open');
+        }
+
+        async function loadPortals() {
+            portals = await window.vpnAPI.getPortals();
+
+            if (portals.length === 0) {
+                noPortalView.classList.remove('hidden');
+                loginView.classList.add('hidden');
+                return;
+            }
+
+            noPortalView.classList.add('hidden');
+            loginView.classList.remove('hidden');
+
+            // Build dropdown menu
+            dropdownMenu.innerHTML = '';
+            portals.forEach(portal => {
+                const item = document.createElement('button');
+                item.className = 'dropdown-item';
+                item.textContent = portal.name;
+                item.onclick = () => selectPortal(portal);
+                dropdownMenu.appendChild(item);
+            });
+
+            // Try to select a portal in this priority:
+            // 1. Current portal if set
+            // 2. Portal from saved credentials
+            // 3. First portal in list
+            const currentPortal = await window.vpnAPI.getCurrentPortal();
+            if (currentPortal) {
+                await selectPortal(currentPortal, false);
+            } else {
+                // Try to get portal from saved credentials
+                try {
+                    const creds = await window.vpnAPI.getCredentials();
+                    if (creds && creds.portalId) {
+                        const savedPortal = portals.find(p => p.id === creds.portalId);
+                        if (savedPortal) {
+                            await selectPortal(savedPortal, true);
+                            return;
+                        }
+                    }
+                } catch (e) {}
+
+                // Default to first portal
+                if (portals.length > 0) {
+                    await selectPortal(portals[0], true);
+                }
+            }
+        }
+
+        async function selectPortal(portal, notify = true) {
+            selectedPortalId = portal.id;
+            selectedPortalName.textContent = portal.name;
+            selectedPortalName.classList.remove('placeholder');
+            dropdownMenu.classList.remove('open');
+
+            if (notify) {
+                window.vpnAPI.selectPortal(portal.id);
+            }
+
+            // Load saved credentials for this portal
+            await loadSavedCredentials();
+        }
+
+        async function checkConnectionStatus() {
+            const status = await window.vpnAPI.getConnectionStatus();
+            if (status.isConnected) {
+                await showConnectedView(status);
+            }
+        }
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!selectedPortalId) {
+                showError('Please select a portal');
+                return;
+            }
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            errorMessage.style.display = 'none';
+            connectBtn.disabled = true;
+            connectBtn.textContent = 'Connecting...';
+
+            try {
+                const loginResult = await window.vpnAPI.login({ username, password });
+                if (!loginResult.success) throw new Error(loginResult.error);
+
+                const connectResult = await window.vpnAPI.connect();
+                if (!connectResult.success) throw new Error(connectResult.error);
+
+                // Save credentials after successful connection (only if checkbox is checked)
+                const rememberCredentials = document.getElementById('rememberCredentials').checked;
+                if (rememberCredentials) {
+                    try {
+                        await window.vpnAPI.saveCredentials({
+                            portalId: selectedPortalId,
+                            username: username,
+                            password: password
+                        });
+                    } catch (credError) {
+                        console.error('Failed to save credentials:', credError);
+                    }
+                }
+
+                const status = await window.vpnAPI.getConnectionStatus();
+                await showConnectedView(status);
+            } catch (error) {
+                showError(error.message);
+                connectBtn.disabled = false;
+                connectBtn.textContent = 'Connect';
+            }
+        });
+
+        function addPortal() {
+            document.getElementById('modalOverlay').style.display = 'flex';
+            document.getElementById('modalPortalName').value = '';
+            document.getElementById('modalPortalIP').value = '';
+            document.getElementById('modalPortalName').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+        }
+
+        async function submitPortal() {
+            const name = document.getElementById('modalPortalName').value.trim();
+            const ip = document.getElementById('modalPortalIP').value.trim();
+
+            if (!name || !ip) {
+                showError('Please fill in all fields');
+                return;
+            }
+
+            const result = await window.vpnAPI.addPortal({ name, ip });
+            if (result.success) {
+                closeModal();
+                await loadPortals();
+            } else {
+                showError(result.error);
+            }
+        }
+
+        async function disconnect() {
+            const result = await window.vpnAPI.disconnect();
+            if (result.success) {
+                showLoginView();
+            }
+        }
+
+        async function showConnectedView(status) {
+            loginView.classList.add('hidden');
+            noPortalView.classList.add('hidden');
+            connectedView.classList.remove('hidden');
+
+            document.getElementById('connectedPortal').textContent = status.portal?.name || '-';
+            document.getElementById('connectedUser').textContent = status.user?.username || '-';
+            document.getElementById('connectedIP').textContent = 'Checking...';
+
+            // Fetch actual tunnel IP from VPN status
+            try {
+                const vpnStatus = await window.vpnAPI.getVPNStatus();
+                if (vpnStatus.success && vpnStatus.data.tunnelIP) {
+                    document.getElementById('connectedIP').textContent = vpnStatus.data.tunnelIP;
+                } else {
+                    document.getElementById('connectedIP').textContent = '-';
+                }
+            } catch (error) {
+                document.getElementById('connectedIP').textContent = '-';
+            }
+        }
+
+        function showLoginView() {
+            connectedView.classList.add('hidden');
+            loginView.classList.remove('hidden');
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            connectBtn.disabled = false;
+            connectBtn.textContent = 'Connect';
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        async function closeWindow() {
+            await window.vpnAPI.close();
+        }
+
+        // Handle Enter key in modal inputs
+        document.getElementById('modalPortalIP').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitPortal();
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

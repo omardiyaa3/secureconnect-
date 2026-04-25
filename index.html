@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WorldPosta VPN</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Linux: plain solid colors (no glassy gradient) */
+        body.linux-light {
+            background: #f0f0f0;
+            color: #333;
+        }
+        body.linux-dark {
+            background: #252525;
+            color: #e0e0e0;
+        }
+        body.linux-light input {
+            background: #ffffff;
+            color: #333;
+            border: 1px solid #c0c0c0;
+        }
+        body.linux-light input::placeholder { color: #888; }
+        body.linux-light button {
+            background: #667eea;
+            color: #fff;
+        }
+        body.linux-light .error { background: rgba(239,68,68,0.15); color: #dc2626; }
+        body.linux-dark input {
+            background: #333333;
+            color: #e0e0e0;
+            border: 1px solid #505050;
+        }
+        body.linux-dark input::placeholder { color: #888; }
+        body.linux-dark button {
+            background: #667eea;
+            color: #fff;
+        }
+        body.linux-dark .error { background: rgba(239,68,68,0.3); }
+        body.linux-dark .status-icon { background: #10b981; }
+        body.linux-light .status-icon { background: #10b981; }
+        .container { width: 350px; text-align: center; }
+        .logo { font-size: 48px; margin-bottom: 10px; }
+        h1 { font-size: 24px; margin-bottom: 30px; font-weight: 300; }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; margin-bottom: 8px; font-size: 14px; }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+        input::placeholder { color: rgba(255,255,255,0.6); }
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #fff;
+            color: #667eea;
+        }
+        button:hover { transform: translateY(-2px); }
+        button:disabled { opacity: 0.6; }
+        .error {
+            background: rgba(239,68,68,0.2);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .hidden { display: none !important; }
+        .status-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #10b981;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 36px;
+        }
+    </style>
+    <script>
+        // Detect Linux and apply plain theme
+        if (navigator.platform.toLowerCase().includes('linux')) {
+            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.addEventListener('DOMContentLoaded', () => {
+                document.body.classList.add(isDark ? 'linux-dark' : 'linux-light');
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🔐</div>
+        <h1>WorldPosta VPN</h1>
+
+        <div id="loginScreen">
+            <div id="errorMessage" class="error"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" placeholder="Enter username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" placeholder="Enter password" required>
+                </div>
+                <button type="submit" id="loginBtn">Sign In</button>
+            </form>
+        </div>
+
+        <div id="connectedScreen" class="hidden">
+            <div class="status-icon">✓</div>
+            <div style="font-size: 18px; margin-bottom: 5px;">Connected</div>
+            <div id="tunnelIP" style="opacity: 0.8;"></div>
+            <div id="userInfo" style="margin: 20px 0; opacity: 0.9;"></div>
+            <button onclick="disconnect()" style="background: rgba(255,255,255,0.2); color: #fff;">Disconnect</button>
+        </div>
+    </div>
+    <script src="renderer.js"></script>
+</body>
+</html>
