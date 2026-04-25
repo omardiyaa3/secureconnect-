@@ -1025,33 +1025,34 @@ ipcMain.handle('collectLogs', async () => {
 
 // Sign out (disconnect + clear credentials)
 ipcMain.handle('signOut', async () => {
-    try {
-        // Disconnect VPN if connected
-        if (isConnected) {
+    // Disconnect VPN if connected (don't let errors block sign out)
+    if (isConnected) {
+        try {
             await vpnManager.disconnect();
-            isConnected = false;
-            connectionStartTime = null;
-            connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'SSL' };
-            updateTrayIcon();
+        } catch (error) {
+            console.error('Disconnect during sign out error (continuing):', error);
         }
-
-        // Clear saved credentials
-        clearCredentials();
-
-        // Clear current user
-        currentUser = null;
-
-        // Notify main window to update connection status and reset form
-        if (mainWindow) {
-            mainWindow.webContents.send('connection-changed', { connected: false });
-            mainWindow.webContents.send('reset-login-form');
-        }
-
-        return { success: true };
-    } catch (error) {
-        console.error('Sign out error:', error);
-        return { success: false, error: error.message };
     }
+
+    // Always reset state regardless of disconnect result
+    isConnected = false;
+    connectionStartTime = null;
+    connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'SSL' };
+    updateTrayIcon();
+
+    // Clear saved credentials
+    clearCredentials();
+
+    // Clear current user
+    currentUser = null;
+
+    // Notify main window to update connection status and reset form
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('connection-changed', { connected: false });
+        mainWindow.webContents.send('reset-login-form');
+    }
+
+    return { success: true };
 });
 
 // Get app version

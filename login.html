@@ -851,11 +851,6 @@
             await loadPortals();
             await checkConnectionStatus();
 
-            // Re-check connection status every time the window gets focus
-            window.addEventListener('focus', () => {
-                checkConnectionStatus();
-            });
-
             // Close dropdown when clicking outside
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.dropdown-container')) {
