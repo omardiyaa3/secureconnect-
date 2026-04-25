@@ -893,9 +893,16 @@
         });
 
         // Edit portal
-        window.editPortal = function(id) {
+        window.editPortal = async function(id) {
             const portal = portals.find(p => p.id === id);
             if (!portal) return;
+
+            // Block editing the portal if currently connected to it
+            const status = await window.vpnAPI.getConnectionStatus();
+            if (status && status.isConnected && status.portal && status.portal.id === id) {
+                alert('Please disconnect from this portal before editing it.');
+                return;
+            }
 
             editingPortalId = id;
             modalTitle.textContent = 'Edit Portal';
@@ -907,6 +914,13 @@
 
         // Delete portal
         window.deletePortal = async function(id) {
+            // Block deleting the portal if currently connected to it
+            const status = await window.vpnAPI.getConnectionStatus();
+            if (status && status.isConnected && status.portal && status.portal.id === id) {
+                alert('Please disconnect from this portal before deleting it.');
+                return;
+            }
+
             if (!confirm('Are you sure you want to delete this portal?')) return;
 
             try {

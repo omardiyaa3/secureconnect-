@@ -322,6 +322,11 @@ function createSettingsWindow() {
 
     settingsWindow.loadFile('settings.html');
 
+    // Remove menu bar on Windows (not needed for settings window)
+    if (process.platform === 'win32') {
+        settingsWindow.removeMenu();
+    }
+
     settingsWindow.on('closed', () => {
         settingsWindow = null;
     });
@@ -776,6 +781,10 @@ ipcMain.handle('getConnectionStatus', () => {
 
 ipcMain.handle('removePortal', async (event, portalId) => {
     try {
+        if (isConnected && currentPortal && currentPortal.id === portalId) {
+            return { success: false, error: 'Please disconnect before deleting the active portal' };
+        }
+
         portals = portals.filter(p => p.id !== portalId);
 
         // If removed portal was current, clear it
@@ -952,6 +961,10 @@ ipcMain.handle('closeSettings', () => {
 // Edit portal
 ipcMain.handle('editPortal', async (event, { id, name, ip }) => {
     try {
+        if (isConnected && currentPortal && currentPortal.id === id) {
+            return { success: false, error: 'Please disconnect before editing the active portal' };
+        }
+
         const portal = portals.find(p => p.id === id);
         if (!portal) {
             return { success: false, error: 'Portal not found' };
@@ -1030,8 +1043,9 @@ ipcMain.handle('signOut', async () => {
             settingsWindow.close();
         }
 
-        // Notify main window to reset form
+        // Notify main window to update connection status and reset form
         if (mainWindow) {
+            mainWindow.webContents.send('connection-changed', { connected: false });
             mainWindow.webContents.send('reset-login-form');
         }
 
