@@ -98,7 +98,9 @@
         "nsis"
       ],
       "icon": "assets/icon.png",
-      "requestedExecutionLevel": "requireAdministrator"
+      "requestedExecutionLevel": "requireAdministrator",
+      "sign": "./sign.js",
+      "signingHashAlgorithms": ["sha256"]
     },
     "nsis": {
       "oneClick": false,
