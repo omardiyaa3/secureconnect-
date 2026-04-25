@@ -1038,11 +1038,6 @@ ipcMain.handle('signOut', async () => {
         // Clear current user
         currentUser = null;
 
-        // Close settings window
-        if (settingsWindow) {
-            settingsWindow.close();
-        }
-
         // Notify main window to update connection status and reset form
         if (mainWindow) {
             mainWindow.webContents.send('connection-changed', { connected: false });
