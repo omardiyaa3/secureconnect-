@@ -271,16 +271,22 @@ function createWindow() {
 function showWindow() {
     if (!mainWindow) return;
 
+    const { screen } = require('electron');
     const trayBounds = tray.getBounds();
     const windowBounds = mainWindow.getBounds();
-    const x = Math.round(trayBounds.x + (trayBounds.width / 2) - (windowBounds.width / 2));
 
-    let y;
+    let x, y;
+
     if (process.platform === 'win32') {
-        // Windows: taskbar at bottom, open window above tray icon
-        y = Math.round(trayBounds.y - windowBounds.height - 5);
+        // Windows: anchor to work area bottom-right, just above the taskbar
+        // tray.getBounds() can report wrong position when icon is in overflow area
+        const display = screen.getDisplayNearestPoint({ x: trayBounds.x, y: trayBounds.y });
+        const workArea = display.workArea;
+        x = Math.round(workArea.x + workArea.width - windowBounds.width - 10);
+        y = Math.round(workArea.y + workArea.height - windowBounds.height - 10);
     } else {
         // macOS: menu bar at top, open window below tray icon
+        x = Math.round(trayBounds.x + (trayBounds.width / 2) - (windowBounds.width / 2));
         y = Math.round(trayBounds.y + trayBounds.height + 5);
     }
 
