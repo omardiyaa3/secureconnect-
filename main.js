@@ -293,9 +293,6 @@ function showWindow() {
     mainWindow.setPosition(x, y);
     mainWindow.show();
     mainWindow.focus();
-
-    // Send current connection state so the popup always shows the correct status
-    mainWindow.webContents.send('connection-changed', { connected: isConnected });
 }
 
 function createSettingsWindow() {
