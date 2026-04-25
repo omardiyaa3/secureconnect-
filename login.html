@@ -987,6 +987,8 @@
             const status = await window.vpnAPI.getConnectionStatus();
             if (status.isConnected) {
                 await showConnectedView(status);
+            } else {
+                showLoginView();
             }
         }
 
