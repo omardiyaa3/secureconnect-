@@ -913,26 +913,29 @@ ipcMain.handle('connect', async (event) => {
 });
 
 ipcMain.handle('disconnect', async (event) => {
+    // Disconnect VPN (don't let errors block state reset)
     try {
         await vpnManager.disconnect();
-        isConnected = false;
-        currentUser = null;
-        connectionStartTime = null;
-        connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'SSL' };
-        updateTrayIcon();
-
-        // Notify windows of connection change
-        if (settingsWindow && !settingsWindow.isDestroyed()) {
-            settingsWindow.webContents.send('connection-changed', { connected: false });
-        }
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('connection-changed', { connected: false });
-        }
-
-        return { success: true };
     } catch (error) {
-        return { success: false, error: error.message };
+        console.error('Disconnect error (continuing):', error);
     }
+
+    // Always reset state regardless of disconnect result
+    isConnected = false;
+    currentUser = null;
+    connectionStartTime = null;
+    connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'SSL' };
+    updateTrayIcon();
+
+    // Notify windows of connection change
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.webContents.send('connection-changed', { connected: false });
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('connection-changed', { connected: false });
+    }
+
+    return { success: true };
 });
 
 ipcMain.handle('getVPNStatus', async () => {
