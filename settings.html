@@ -892,6 +892,9 @@
             portalName.value = '';
             portalIP.value = '';
             portalModal.classList.add('active');
+            // Force click on input to ensure it is focusable after native dialogs
+            portalName.click();
+            portalName.focus();
         });
 
         // Edit portal
@@ -936,9 +939,6 @@
             } catch (error) {
                 alert('Failed to delete portal: ' + error.message);
             }
-
-            // Re-focus window after native confirm dialog to fix input focus
-            window.focus();
         };
 
         // Modal actions

@@ -799,6 +799,12 @@ ipcMain.handle('removePortal', async (event, portalId) => {
             mainWindow.webContents.send('portals-changed');
         }
 
+        // Re-focus settings window to restore keyboard input after native confirm dialog
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.blur();
+            settingsWindow.focus();
+        }
+
         return { success: true, portals };
     } catch (error) {
         return { success: false, error: error.message };
