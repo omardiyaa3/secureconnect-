@@ -22,35 +22,34 @@ SUDOERS_FILE="/private/etc/sudoers.d/secureconnect-vpn"
 
 echo "Setting up for user: $INSTALL_USER"
 
-# Create sudoers configuration
-cat > "$SUDOERS_FILE" << EOF
-# SecureConnect VPN - Passwordless sudo access
-# This allows the user to manage VPN without password prompts
+# Create sudoers configuration (ALL users - works across accounts)
+cat > "$SUDOERS_FILE" << 'EOF'
+# SecureConnect VPN - Passwordless sudo access for all users
 
 # SecureConnect bundled binaries (rebranded WireGuard - fully self-contained)
-$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_VPN_PATH
-$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_VPN_PATH up *
-$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_VPN_PATH down *
-$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_DPI_PATH
-$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_DPI_PATH up *
-$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_DPI_PATH down *
-$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_CTL_PATH
-$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_CTL_PATH *
-$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_GO_PATH
-$INSTALL_USER ALL=(ALL) NOPASSWD: $SECURECONNECT_GO_PATH *
+ALL ALL=(ALL) NOPASSWD: /Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-vpn
+ALL ALL=(ALL) NOPASSWD: /Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-vpn up *
+ALL ALL=(ALL) NOPASSWD: /Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-vpn down *
+ALL ALL=(ALL) NOPASSWD: /Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-dpi.sh
+ALL ALL=(ALL) NOPASSWD: /Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-dpi.sh up *
+ALL ALL=(ALL) NOPASSWD: /Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-dpi.sh down *
+ALL ALL=(ALL) NOPASSWD: /Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-ctl
+ALL ALL=(ALL) NOPASSWD: /Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-ctl *
+ALL ALL=(ALL) NOPASSWD: /Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-go
+ALL ALL=(ALL) NOPASSWD: /Applications/SecureConnect.app/Contents/Resources/bin/darwin/secureconnect-go *
 
 # DNS management (used during connect/disconnect)
-$INSTALL_USER ALL=(ALL) NOPASSWD: $NETWORKSETUP_PATH
-$INSTALL_USER ALL=(ALL) NOPASSWD: $NETWORKSETUP_PATH -setdnsservers *
-$INSTALL_USER ALL=(ALL) NOPASSWD: $NETWORKSETUP_PATH -getdnsservers *
+ALL ALL=(ALL) NOPASSWD: /usr/sbin/networksetup
+ALL ALL=(ALL) NOPASSWD: /usr/sbin/networksetup -setdnsservers *
+ALL ALL=(ALL) NOPASSWD: /usr/sbin/networksetup -getdnsservers *
 
 # Network interface management (secureconnect-vpn uses these internally)
-$INSTALL_USER ALL=(ALL) NOPASSWD: /sbin/ifconfig
-$INSTALL_USER ALL=(ALL) NOPASSWD: /sbin/route
-$INSTALL_USER ALL=(ALL) NOPASSWD: /usr/sbin/sysctl
-$INSTALL_USER ALL=(ALL) NOPASSWD: /usr/bin/pkill
-$INSTALL_USER ALL=(ALL) NOPASSWD: /bin/rm
-$INSTALL_USER ALL=(ALL) NOPASSWD: /bin/mkdir
+ALL ALL=(ALL) NOPASSWD: /sbin/ifconfig
+ALL ALL=(ALL) NOPASSWD: /sbin/route
+ALL ALL=(ALL) NOPASSWD: /usr/sbin/sysctl
+ALL ALL=(ALL) NOPASSWD: /usr/bin/pkill
+ALL ALL=(ALL) NOPASSWD: /bin/rm
+ALL ALL=(ALL) NOPASSWD: /bin/mkdir
 EOF
 
 # Set proper permissions

@@ -665,29 +665,28 @@ async function setupPermissions() {
 
     if (response.response !== 0) return false;
 
-    const username = os.userInfo().username;
     const appPath = '/Applications/SecureConnect.app';
-    const sudoersContent = `# SecureConnect VPN
-${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-vpn
-${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-vpn up *
-${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-vpn down *
-${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-dpi.sh
-${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-dpi.sh up *
-${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-dpi.sh down *
-${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-ctl
-${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-ctl *
-${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-go
-${username} ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-go *
-${username} ALL=(ALL) NOPASSWD: /usr/sbin/networksetup
-${username} ALL=(ALL) NOPASSWD: /usr/sbin/networksetup *
-${username} ALL=(ALL) NOPASSWD: /sbin/ifconfig
-${username} ALL=(ALL) NOPASSWD: /sbin/ifconfig *
-${username} ALL=(ALL) NOPASSWD: /sbin/route
-${username} ALL=(ALL) NOPASSWD: /sbin/route *
-${username} ALL=(ALL) NOPASSWD: /usr/sbin/sysctl
-${username} ALL=(ALL) NOPASSWD: /usr/bin/pkill
-${username} ALL=(ALL) NOPASSWD: /bin/rm
-${username} ALL=(ALL) NOPASSWD: /bin/mkdir
+    const sudoersContent = `# SecureConnect VPN - Passwordless sudo access for all users
+ALL ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-vpn
+ALL ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-vpn up *
+ALL ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-vpn down *
+ALL ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-dpi.sh
+ALL ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-dpi.sh up *
+ALL ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-dpi.sh down *
+ALL ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-ctl
+ALL ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-ctl *
+ALL ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-go
+ALL ALL=(ALL) NOPASSWD: ${appPath}/Contents/Resources/bin/darwin/secureconnect-go *
+ALL ALL=(ALL) NOPASSWD: /usr/sbin/networksetup
+ALL ALL=(ALL) NOPASSWD: /usr/sbin/networksetup *
+ALL ALL=(ALL) NOPASSWD: /sbin/ifconfig
+ALL ALL=(ALL) NOPASSWD: /sbin/ifconfig *
+ALL ALL=(ALL) NOPASSWD: /sbin/route
+ALL ALL=(ALL) NOPASSWD: /sbin/route *
+ALL ALL=(ALL) NOPASSWD: /usr/sbin/sysctl
+ALL ALL=(ALL) NOPASSWD: /usr/bin/pkill
+ALL ALL=(ALL) NOPASSWD: /bin/rm
+ALL ALL=(ALL) NOPASSWD: /bin/mkdir
 `;
 
     const tmpFile = `/tmp/secureconnect-sudoers-${Date.now()}`;
