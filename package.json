@@ -60,22 +60,18 @@
       ],
       "category": "public.app-category.utilities",
       "icon": "assets/icon.png",
-      "identity": "WORLDPOSTA CLOUD SERVICE & DATACENTERS PROVIDERS CO. L.L.C (KK574HP56Q)",
-      "hardenedRuntime": true,
+      "identity": null,
+      "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "entitlements": "entitlements.mac.plist",
       "entitlementsInherit": "entitlements.mac.plist",
       "extendInfo": {
         "LSUIElement": false
-      },
-      "notarize": {
-        "teamId": "KK574HP56Q"
       }
     },
     "pkg": {
       "scripts": "installer/mac",
-      "installLocation": "/Applications",
-      "identity": "WORLDPOSTA CLOUD SERVICE & DATACENTERS PROVIDERS CO. L.L.C (KK574HP56Q)"
+      "installLocation": "/Applications"
     },
     "dmg": {
       "title": "SecureConnect Installer",
