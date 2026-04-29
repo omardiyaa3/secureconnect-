@@ -312,7 +312,7 @@ function createSettingsWindow() {
         frame: true,
         transparent: false,
         backgroundColor: isLinux ? '#f0f0f0' : '#ffffff',
-        titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+        titleBarStyle: 'default',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
