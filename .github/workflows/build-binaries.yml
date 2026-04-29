@@ -128,8 +128,70 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Import signing certificates
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          INSTALLER_CERTIFICATE_BASE64: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_BASE64 }}
+          INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          if [ -n "$CERTIFICATE_BASE64" ]; then
+            echo "$CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/app.p12
+            security import $RUNNER_TEMP/app.p12 -P "${CERTIFICATE_PASSWORD}" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign || \
+              security import $RUNNER_TEMP/app.p12 -P "${CERTIFICATE_PASSWORD}" -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign
+            rm $RUNNER_TEMP/app.p12
+          fi
+
+          if [ -n "$INSTALLER_CERTIFICATE_BASE64" ]; then
+            echo "$INSTALLER_CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/installer.p12
+            security import $RUNNER_TEMP/installer.p12 -P "${INSTALLER_CERTIFICATE_PASSWORD}" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign || \
+              security import $RUNNER_TEMP/installer.p12 -P "${INSTALLER_CERTIFICATE_PASSWORD}" -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productsign
+            rm $RUNNER_TEMP/installer.p12
+          fi
+
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v "$KEYCHAIN_PATH"
+
       - name: Build macOS installer
         run: npm run build:mac
+
+      - name: Sign PKG with Developer ID Installer
+        run: |
+          PKG_FILE=$(find dist -name "*.pkg" | head -1)
+          echo "Signing: $PKG_FILE"
+          SIGNED_PKG="${PKG_FILE%.pkg}-signed.pkg"
+          productsign --sign "Developer ID Installer: WORLDPOSTA CLOUD SERVICE & DATACENTERS PROVIDERS CO. L.L.C (KK574HP56Q)" \
+            "$PKG_FILE" "$SIGNED_PKG"
+          mv "$SIGNED_PKG" "$PKG_FILE"
+          pkgutil --check-signature "$PKG_FILE"
+
+      - name: Notarize PKG
+        continue-on-error: true
+        timeout-minutes: 30
+        run: |
+          PKG_FILE=$(find dist -name "*.pkg" | head -1)
+          echo "Notarizing: $PKG_FILE"
+
+          xcrun notarytool submit "$PKG_FILE" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --timeout 20m || echo "Notarization failed or timed out - continuing anyway"
+
+          xcrun stapler staple "$PKG_FILE" || echo "Stapling failed - continuing anyway"
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload macOS installer
         uses: actions/upload-artifact@v4
