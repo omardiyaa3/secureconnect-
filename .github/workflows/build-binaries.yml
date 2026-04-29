@@ -142,35 +142,46 @@ jobs:
       - name: Build macOS installer
         run: npm run build:mac
 
-      - name: Sign PKG with Developer ID Installer
-        run: |
-          PKG_FILE=$(find dist -name "*.pkg" | head -1)
-          echo "Signing: $PKG_FILE"
-          SIGNED_PKG="${PKG_FILE%.pkg}-signed.pkg"
-          productsign --sign "Developer ID Installer: WORLDPOSTA CLOUD SERVICE & DATACENTERS PROVIDERS CO. L.L.C (KK574HP56Q)" \
-            "$PKG_FILE" "$SIGNED_PKG"
-          mv "$SIGNED_PKG" "$PKG_FILE"
-          pkgutil --check-signature "$PKG_FILE"
-
-      - name: Notarize PKG
-        continue-on-error: true
+      - name: Notarize app bundle
         timeout-minutes: 30
         run: |
-          PKG_FILE=$(find dist -name "*.pkg" | head -1)
-          echo "Notarizing: $PKG_FILE"
+          APP_PATH="dist/mac-arm64/SecureConnect.app"
+          echo "=== Zipping app for notarization ==="
+          ditto -c -k --keepParent "$APP_PATH" dist/SecureConnect.zip
 
-          xcrun notarytool submit "$PKG_FILE" \
+          echo "=== Submitting to Apple for notarization ==="
+          xcrun notarytool submit dist/SecureConnect.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait \
-            --timeout 20m || echo "Notarization failed or timed out - continuing anyway"
+            --timeout 25m
 
-          xcrun stapler staple "$PKG_FILE" || echo "Stapling failed - continuing anyway"
+          echo "=== Stapling notarization ticket to app ==="
+          xcrun stapler staple "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Build signed PKG from notarized app
+        run: |
+          echo "=== Building PKG from notarized app ==="
+          pkgbuild --root dist/mac-arm64 \
+            --identifier com.worldposta.secureconnect \
+            --version 2.0.37 \
+            --install-location /Applications \
+            --scripts installer/mac \
+            dist/SecureConnect-2.0.37-arm64-unsigned.pkg
+
+          echo "=== Signing PKG ==="
+          productsign --sign "Developer ID Installer: WORLDPOSTA CLOUD SERVICE & DATACENTERS PROVIDERS CO. L.L.C (KK574HP56Q)" \
+            dist/SecureConnect-2.0.37-arm64-unsigned.pkg \
+            dist/SecureConnect-2.0.37-arm64.pkg
+
+          rm dist/SecureConnect-2.0.37-arm64-unsigned.pkg
+          pkgutil --check-signature dist/SecureConnect-2.0.37-arm64.pkg
 
       - name: Upload macOS installer
         uses: actions/upload-artifact@v4
