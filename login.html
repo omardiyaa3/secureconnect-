@@ -70,7 +70,6 @@
         /* macOS: Transparent body with vibrancy blur effect */
         body.platform-darwin {
             background: transparent !important;
-            border-radius: 20px;
             overflow: hidden;
         }
 
@@ -78,7 +77,14 @@
             height: 100%;
             box-shadow: none;
             border: none;
-            border-radius: 0;
+            background: rgba(235, 240, 248, 0.97);
+            border-radius: 20px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body.platform-darwin .glass-card {
+                background: rgba(30, 41, 59, 0.97);
+            }
         }
 
         /* Windows: Fully transparent body, card has the background */
@@ -610,6 +616,14 @@
             font-weight: 500;
         }
 
+        .status-header.reconnecting svg {
+            color: #f59e0b;
+        }
+
+        .status-header.reconnecting span {
+            color: #f59e0b;
+        }
+
         .status-info {
             font-size: 14px;
         }
@@ -791,11 +805,11 @@
 
                 <!-- Status Card -->
                 <div class="status-card">
-                    <div class="status-header">
+                    <div class="status-header" id="statusHeader">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
-                        <span>Connected</span>
+                        <span id="statusLabel">Connected</span>
                     </div>
                     <div class="status-info">
                         <p><span class="label">Portal:</span> <span id="connectedPortal">-</span></p>
@@ -883,6 +897,19 @@
                     connectBtn.disabled = false;
                     connectBtn.textContent = 'Connect';
                     errorMessage.style.display = 'none';
+                }
+            });
+
+            // Listen for connection health status (reconnecting/connected)
+            window.vpnAPI.onConnectionStatus((data) => {
+                const statusHeader = document.getElementById('statusHeader');
+                const statusLabel = document.getElementById('statusLabel');
+                if (data.status === 'reconnecting') {
+                    statusHeader.classList.add('reconnecting');
+                    statusLabel.textContent = 'Reconnecting...';
+                } else if (data.status === 'connected') {
+                    statusHeader.classList.remove('reconnecting');
+                    statusLabel.textContent = 'Connected';
                 }
             });
         }
@@ -1080,6 +1107,10 @@
             loginView.classList.add('hidden');
             noPortalView.classList.add('hidden');
             connectedView.classList.remove('hidden');
+
+            // Reset status to connected
+            document.getElementById('statusHeader').classList.remove('reconnecting');
+            document.getElementById('statusLabel').textContent = 'Connected';
 
             document.getElementById('connectedPortal').textContent = status.portal?.name || '-';
             document.getElementById('connectedUser').textContent = status.user?.username || '-';

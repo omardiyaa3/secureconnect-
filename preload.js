@@ -51,5 +51,8 @@ contextBridge.exposeInMainWorld('vpnAPI', {
     },
     onPortalsChanged: (callback) => {
         ipcRenderer.on('portals-changed', (event) => callback());
+    },
+    onConnectionStatus: (callback) => {
+        ipcRenderer.on('connection-status', (event, data) => callback(data));
     }
 });

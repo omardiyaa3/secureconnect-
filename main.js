@@ -83,6 +83,14 @@ let connectionStats = {
     protocol: 'SSL'
 };
 
+// Connection health monitoring
+let connectionMonitor = null;
+let reconnectAttempts = 0;
+const MAX_HANDSHAKE_AGE = 180; // 3 minutes - if no handshake in this time, connection is dead
+const MONITOR_INTERVAL = 15000; // Check every 15 seconds
+const MAX_RECONNECT_TIME = 60000; // Give up after 60 seconds of reconnecting
+let reconnectStartTime = null;
+
 const CONFIG_DIR = path.join(os.homedir(), '.worldposta-vpn');
 const PORTALS_FILE = path.join(CONFIG_DIR, 'portals.json');
 const CREDENTIALS_FILE = path.join(CONFIG_DIR, 'credentials.enc');
@@ -213,6 +221,75 @@ function updateTrayIcon() {
     tray.setToolTip(isConnected ? 'SecureConnect VPN - Connected' : 'SecureConnect VPN - Disconnected');
 }
 
+// Connection health monitoring
+function startConnectionMonitor() {
+    stopConnectionMonitor();
+    reconnectAttempts = 0;
+    reconnectStartTime = null;
+
+    connectionMonitor = setInterval(async () => {
+        if (!isConnected) {
+            stopConnectionMonitor();
+            return;
+        }
+
+        const secondsAgo = await vpnManager.getLastHandshake();
+        console.log(`[MONITOR] Last handshake: ${secondsAgo}s ago`);
+
+        if (secondsAgo === null || secondsAgo > MAX_HANDSHAKE_AGE) {
+            console.log('[MONITOR] Connection appears dead, attempting reconnect...');
+
+            if (!reconnectStartTime) {
+                reconnectStartTime = Date.now();
+            }
+
+            // Notify UI that we're reconnecting
+            notifyWindows('connection-status', { status: 'reconnecting' });
+
+            // Check if we've been trying too long
+            if (Date.now() - reconnectStartTime > MAX_RECONNECT_TIME) {
+                console.log('[MONITOR] Reconnect timeout, disconnecting...');
+                stopConnectionMonitor();
+
+                // Force disconnect
+                try { await vpnManager.disconnect(); } catch (e) { /* ignore */ }
+                isConnected = false;
+                connectionStartTime = null;
+                connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'SSL' };
+                updateTrayIcon();
+                notifyWindows('connection-changed', { connected: false });
+                return;
+            }
+        } else {
+            // Connection is healthy, reset reconnect state
+            if (reconnectStartTime) {
+                console.log('[MONITOR] Connection restored');
+                reconnectStartTime = null;
+                reconnectAttempts = 0;
+                notifyWindows('connection-status', { status: 'connected' });
+            }
+        }
+    }, MONITOR_INTERVAL);
+}
+
+function stopConnectionMonitor() {
+    if (connectionMonitor) {
+        clearInterval(connectionMonitor);
+        connectionMonitor = null;
+    }
+    reconnectStartTime = null;
+    reconnectAttempts = 0;
+}
+
+function notifyWindows(event, data) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(event, data);
+    }
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.webContents.send(event, data);
+    }
+}
+
 function createWindow() {
     const isLinux = process.platform === 'linux';
 
@@ -225,7 +302,7 @@ function createWindow() {
         transparent: true,  // Enable transparency on all platforms
         alwaysOnTop: true,
         skipTaskbar: true,
-        hasShadow: true,
+        hasShadow: false,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -236,8 +313,6 @@ function createWindow() {
     // Platform-specific glassmorphism/blur effects
     if (process.platform === 'darwin') {
         // macOS: Use vibrancy for native blur effect
-        windowOptions.vibrancy = 'fullscreen-ui';
-        windowOptions.visualEffectState = 'active';
         windowOptions.backgroundColor = '#00000000'; // Fully transparent
     } else if (process.platform === 'win32') {
         // Windows: Use semi-transparent dark background for glass look
@@ -896,6 +971,7 @@ ipcMain.handle('connect', async (event) => {
         }
 
         updateTrayIcon();
+        startConnectionMonitor();
 
         // Notify windows of connection change
         if (settingsWindow && !settingsWindow.isDestroyed()) {
@@ -925,14 +1001,10 @@ ipcMain.handle('disconnect', async (event) => {
     connectionStartTime = null;
     connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'SSL' };
     updateTrayIcon();
+    stopConnectionMonitor();
 
     // Notify windows of connection change
-    if (settingsWindow && !settingsWindow.isDestroyed()) {
-        settingsWindow.webContents.send('connection-changed', { connected: false });
-    }
-    if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('connection-changed', { connected: false });
-    }
+    notifyWindows('connection-changed', { connected: false });
 
     return { success: true };
 });
@@ -1044,6 +1116,7 @@ ipcMain.handle('signOut', async () => {
     connectionStartTime = null;
     connectionStats = { assignedIP: null, gatewayIP: null, bytesIn: 0, bytesOut: 0, protocol: 'SSL' };
     updateTrayIcon();
+    stopConnectionMonitor();
 
     // Clear saved credentials
     clearCredentials();

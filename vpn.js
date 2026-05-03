@@ -407,6 +407,36 @@ class VPNManager {
         }
     }
 
+    async getLastHandshake() {
+        if (!this.connected) return null;
+
+        try {
+            let cmd;
+            if (this.platform === 'win32') {
+                // Windows: use secureconnect-ctl via pipe
+                cmd = `"${this.wgPath}" show SecureConnect latest-handshakes`;
+            } else {
+                // macOS/Linux: use sudo secureconnect-ctl
+                cmd = `sudo "${this.wgPath}" show all latest-handshakes`;
+            }
+
+            const { stdout } = await execAsync(cmd, { timeout: 5000 });
+            const lines = stdout.trim().split('\n');
+            for (const line of lines) {
+                const parts = line.trim().split(/\s+/);
+                const timestamp = parseInt(parts[parts.length - 1]);
+                if (timestamp > 0) {
+                    const secondsAgo = Math.floor(Date.now() / 1000) - timestamp;
+                    return secondsAgo;
+                }
+            }
+            return null;
+        } catch (error) {
+            console.error('Handshake check failed:', error.message);
+            return null;
+        }
+    }
+
     async getStatus() {
         try {
             const apiStatus = await this.apiClient.getStatus();
