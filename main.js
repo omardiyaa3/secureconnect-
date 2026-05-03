@@ -86,8 +86,8 @@ let connectionStats = {
 // Connection health monitoring
 let connectionMonitor = null;
 let reconnectAttempts = 0;
-const MAX_HANDSHAKE_AGE = 180; // 3 minutes - if no handshake in this time, connection is dead
-const MONITOR_INTERVAL = 15000; // Check every 15 seconds
+const MAX_HANDSHAKE_AGE = 150; // 2.5 minutes - if no handshake in this time, connection is dead
+const MONITOR_INTERVAL = 10000; // Check every 10 seconds
 const MAX_RECONNECT_TIME = 60000; // Give up after 60 seconds of reconnecting
 let reconnectStartTime = null;
 
@@ -234,9 +234,12 @@ function startConnectionMonitor() {
         }
 
         const secondsAgo = await vpnManager.getLastHandshake();
-        console.log(`[MONITOR] Last handshake: ${secondsAgo}s ago`);
+        console.log(`[MONITOR] Last handshake: ${secondsAgo === null ? 'unknown' : secondsAgo + 's ago'}`);
 
-        if (secondsAgo === null || secondsAgo > MAX_HANDSHAKE_AGE) {
+        // null means the command failed — skip this check, don't treat as disconnected
+        if (secondsAgo === null) return;
+
+        if (secondsAgo > MAX_HANDSHAKE_AGE) {
             console.log('[MONITOR] Connection appears dead, attempting reconnect...');
 
             if (!reconnectStartTime) {
@@ -244,6 +247,7 @@ function startConnectionMonitor() {
             }
 
             // Notify UI that we're reconnecting
+            tray.setToolTip('SecureConnect VPN - Reconnecting...');
             notifyWindows('connection-status', { status: 'reconnecting' });
 
             // Check if we've been trying too long
